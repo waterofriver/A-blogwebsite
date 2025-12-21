@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>管理帖子</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+            margin: 0;
+            padding-top: 70px; /* 和搜索页一致的顶部间距 */
+        }
+        /* 导航栏 - 完全统一为搜索页的样式 */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: white;
+            padding: 10px 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .navbar-logo {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #007BFF;
+            text-decoration: none;
+        }
+        
+        .navbar-menu {
+            display: flex;
+            list-style: none;
+            gap: 20px;
+        }
+        
+        .navbar-menu a {
+            text-decoration: none;
+            color: #333;
+        }
+        
+        .navbar-menu a:hover {
+            color: #007BFF;
+        }
+        /* 原有样式保持不变 */
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 32px 40px 40px 40px;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .btn, button[type="submit"] {
+            display: inline-block;
+            padding: 8px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 15px;
+            transition: background 0.2s;
+        }
+        .btn:hover, button[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+        form {
+            margin-bottom: 18px;
+            background: #f8f9fa;
+            padding: 14px 18px;
+            border-radius: 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+        label {
+            font-weight: bold;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            resize: vertical;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        ul li {
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 10px 14px;
+        }
+        small {
+            color: #666;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #eee;
+            margin: 28px 0 18px 0;
+        }
+        /* 响应式适配 - 和搜索页一致 */
+        @media (max-width: 768px) {
+            .navbar {
+                flex-wrap: wrap;
+                padding: 10px 15px;
+            }
+            .navbar-menu {
+                margin-top: 10px;
+                width: 100%;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+            .container {
+                margin: 20px 15px;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 - 完全统一为搜索页的结构 -->
+    <nav class="navbar">
+        <a href="{% url 'home' %}" class="navbar-logo">论坛</a>
+        <ul class="navbar-menu">
+            <li><a href="{% url 'home' %}">首页</a></li>
+            <li><a href="{% url 'create_blog' %}">发布</a></li>
+            <li><a href="{% url 'user_profile' %}">个人中心</a></li>
+            {% if request.user.is_admin %}
+            <li><a href="{% url 'admin_dashboard' %}">管理</a></li>
+            {% endif %}
+            <li><a href="{% url 'logout' %}">退出</a></li>
+        </ul>
+    </nav>
+
+    <!-- 顶部装饰 -->
+    <svg width="100%" height="100" style="position:absolute;top:0;left:0;z-index:-1;" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="80" cy="60" r="60" fill="#e3f0ff" opacity="0.7"/>
+        <circle cx="95%" cy="30" r="40" fill="#c8e6ff" opacity="0.5"/>
+    </svg>
+    <div class="container">
+        <h1>管理帖子</h1>
+        <h2>{{ blog.title }}</h2>
+        <p>{{ blog.content }}</p>
+        <p>发布者：{% if blog.author.nickname %}{{ blog.author.nickname }}{% else %}{{ blog.author.username }}{% endif %}</p>
+        <p>发布时间：{{ blog.created_at|date:"Y-m-d H:i" }}</p>
+        <hr>
+        <h3>编辑帖子</h3>
+        <form method="POST">{% csrf_token %}
+            <input type="hidden" name="edit_blog" value="true">
+            <label for="title">标题：</label>
+            <input type="text" id="title" name="title" value="{{ blog.title }}" required>
+            <label for="content">内容：</label>
+            <textarea id="content" name="content" rows="10">{{ blog.content }}</textarea>
+            <button type="submit">更新帖子</button>
+        </form>
+        <form method="POST">{% csrf_token %}
+            <input type="hidden" name="delete_blog" value="true">
+            <button type="submit" onclick="return confirm('您确定要删除这篇帖子吗？')">删除帖子</button>
+        </form>
+        <hr>
+        <h3>评论</h3>
+        <ul>
+            {% for comment in blog.comments.all %}
+                <li>
+                    <p>{{ comment.content }}</p>
+                    <small>由 {% if comment.author.nickname %}{{ comment.author.nickname }}{% else %}{{ comment.author.username }}{% endif %} 在 {{ comment.created_at|date:"Y-m-d H:i" }} 发表</small>
+                    <form method="POST" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="comment_id" value="{{ comment.id }}">
+                        <button type="submit" onclick="return confirm('您确定要删除这条评论吗？')">删除评论</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+        <a href="{% url 'user_profile' %}" class="btn">返回个人资料</a>
+    </div>
+    <!-- 底部装饰 -->
+    <svg width="100%" height="100" style="position:absolute;bottom:0;left:0;z-index:-1;" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="90%" cy="60" r="50" fill="#e3f0ff" opacity="0.6"/>
+        <circle cx="60" cy="80" r="30" fill="#c8e6ff" opacity="0.4"/>
+    </svg>
+</body>
+</html>

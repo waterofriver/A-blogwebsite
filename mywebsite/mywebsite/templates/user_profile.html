@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>个人资料</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: #f5f6fa;
+        }
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 32px 40px 40px 40px;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .profile-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        .avatar-wrapper {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 2px solid #007BFF;
+            background: #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .avatar {
+            width: 92px;
+            height: 92px;
+            border-radius: 50%;
+            object-fit: cover;
+            display: block;
+        }
+        .profile-info {
+            padding-top: 8px;
+        }
+        .profile-info p {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+        .btn, button[type="submit"] {
+            display: inline-block;
+            padding: 8px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 15px;
+            transition: background 0.2s;
+            box-shadow: 0 2px 8px rgba(0,123,255,0.08);
+        }
+        .btn:hover, button[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+        .btn:active, button[type="submit"]:active {
+            box-shadow: 0 1px 4px rgba(0,123,255,0.16);
+            transform: translateY(1px) scale(0.98);
+        }
+        form {
+            margin-bottom: 24px;
+            background: #f8f9fa;
+            padding: 18px 20px;
+            border-radius: 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        input[type="password"], input[type="text"], input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .editable {
+            cursor: pointer;
+            color: #007BFF;
+        }
+        .editable:hover {
+            text-decoration: underline;
+            background: #e3f0ff;
+            border-radius: 3px;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #eee;
+            margin: 28px 0 18px 0;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        ul li {
+            margin-bottom: 8px;
+        }
+        .blog-title {
+            font-size: 18px; /* 增大字体大小 */
+            font-weight: bold; /* 加粗字体 */
+            color: #333; /* 设置字体颜色 */
+            text-decoration: none; /* 去掉下划线 */
+            transition: color 0.3s; /* 添加颜色变化的过渡效果 */
+        }
+        .blog-title:hover {
+            color: #007BFF; /* 鼠标悬停时改变颜色 */
+            text-decoration: underline; /* 鼠标悬停时添加下划线 */
+        }
+        .blog-list {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 12px 18px;
+        }
+        .nickname-input {
+            width: calc(100% - 100px); /* 调整宽度 */
+            padding: 8px;
+            margin-left: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .nickname-btn {
+            padding: 5px 10px;
+            margin-top: 2px;
+            margin-left: 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .save-btn {
+            background-color: #28a745; /* 绿色 */
+            color: white;
+        }
+        .save-btn:hover {
+            background-color: #218838;
+        }
+        .cancel-btn {
+            background-color: #dc3545; /* 红色 */
+            color: white;
+        }
+        .cancel-btn:hover {
+            background-color: #a71d2a;
+        }
+        .alert {
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+        }
+        .alert-success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .alert-danger {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部装饰 -->
+    <svg width="100%" height="120" style="position:absolute;top:0;left:0;z-index:-1;" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="15%" cy="60" rx="180" ry="60" fill="#e3f0ff" opacity="0.7"/>
+        <ellipse cx="85%" cy="40" rx="120" ry="40" fill="#c8e6ff" opacity="0.5"/>
+    </svg>
+    <div class="container">
+        <div class="messages">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        <h1>个人资料</h1>
+        <div class="profile-header">
+            <div class="avatar-wrapper">
+                <img src="/media/{{ request.user.avatar_path|default:'default-avatar.jpg' }}" alt="用户头像" class="avatar">
+            </div>
+            <div class="profile-info">
+                <p>
+                    昵称: 
+                    <span class="editable" id="nickname">{{ request.user.nickname }}</span>
+                    <input type="text" id="nickname-edit" class="nickname-input" style="display: none;" value="{{ request.user.nickname }}">
+                    <button id="save-nickname" class="nickname-btn save-btn" style="display: none;">保存</button>
+                    <button id="cancel-nickname" class="nickname-btn cancel-btn" style="display: none;">取消</button>
+                </p>
+                <p>用户名: {{ request.user.username }}</p>
+                <p>邮箱: {{ request.user.email }}</p>
+            </div>
+        </div>
+        <!-- 中部波浪分割 -->
+        <svg width="100%" height="32" style="display:block;margin:0 0 18px 0;" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0,16 Q80,32 180,16 T700,16 V32 H0 Z" fill="#e3f0ff" opacity="0.5"/>
+        </svg>
+        <form method="POST" enctype="multipart/form-data" action="{% url 'upload_avatar' %}">{% csrf_token %}
+            <label>更换头像：</label>
+            <input type="file" name="avatar" accept="image/*" required>
+            <button type="submit">上传新头像</button>
+        </form>
+        <hr>
+        <form method="POST" action="{% url 'user_profile' %}" id="password-change-form">{% csrf_token %}
+            <h3>修改密码</h3>
+            <label for="old_password">旧密码</label>
+            <input type="password" name="old_password" id="old_password" required>
+            <label for="new_password">新密码</label>
+            <input type="password" name="new_password" id="new_password" required>
+            <label for="confirm_password">确认新密码</label>
+            <input type="password" name="confirm_password" id="confirm_password" required>
+            <button type="submit" form="password-change-form">修改密码</button>
+        </form>
+        <form method="POST" action="{% url 'user_profile' %}" id="security-question-form">{% csrf_token %}
+            <h3>修改安全问题</h3>
+            <label for="password_for_security">输入密码确认：</label>
+            <input type="password" name="password_for_security" id="password_for_security" required>
+            <label for="new_security_question">新安全问题</label>
+            <input type="text" name="new_security_question" id="new_security_question" required>
+            <label for="new_security_answer">新安全问题答案</label>
+            <input type="text" name="new_security_answer" id="new_security_answer" required>
+            <button type="submit" form="security-question-form">修改安全问题</button>
+        </form>
+        <hr>
+        <h2>我的博客</h2>
+        <!-- 博客列表上方彩色点缀 -->
+        <svg width="100" height="20" style="display:block;margin-bottom:8px;" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="10" cy="10" r="6" fill="#a0c4ff" opacity="0.7"/>
+            <circle cx="35" cy="10" r="4" fill="#b2e0ff" opacity="0.5"/>
+            <circle cx="60" cy="10" r="5" fill="#c8e6ff" opacity="0.6"/>
+            <circle cx="85" cy="10" r="3" fill="#b2f7ef" opacity="0.5"/>
+        </svg>
+        <ul class="blog-list">
+            {% for blog in blogs %}
+                <li style="position:relative;padding-left:28px;">
+                    <svg width="16" height="16" style="position:absolute;left:4px;top:8px;transform:translateY(-50%);" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="8" cy="8" r="6" fill="#a0c4ff" opacity="0.6"/>
+                    </svg>
+                    <a href="{% url 'blog_detail' blog_id=blog.id %}" class="blog-title">{{ blog.title }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+        <p style="text-align:right;"><a href="{% url 'home' %}" class="btn">返回主页</a></p>
+    </div>
+    <!-- 底部装饰 -->
+    <svg width="100%" height="120" style="position:absolute;bottom:0;left:0;z-index:-1;" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="80%" cy="60" rx="160" ry="50" fill="#e3f0ff" opacity="0.6"/>
+        <ellipse cx="10%" cy="80" rx="100" ry="30" fill="#c8e6ff" opacity="0.4"/>
+    </svg>
+    <script>
+    document.getElementById('nickname').addEventListener('click', function() {
+        this.style.display = 'none';
+        document.getElementById('nickname-edit').style.display = 'inline';
+        document.getElementById('save-nickname').style.display = 'inline';
+        document.getElementById('cancel-nickname').style.display = 'inline';
+        document.getElementById('nickname-edit').focus();
+    });
+
+    document.getElementById('save-nickname').addEventListener('click', function() {
+        var newNickname = document.getElementById('nickname-edit').value;
+        // 发送请求到后端保存新昵称
+        fetch('{% url 'update_nickname' %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ nickname: newNickname })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('nickname').textContent = newNickname;
+                document.getElementById('nickname').style.display = 'inline';
+                document.getElementById('nickname-edit').style.display = 'none';
+                document.getElementById('save-nickname').style.display = 'none';
+                document.getElementById('cancel-nickname').style.display = 'none';
+            } else {
+                alert('修改昵称失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('修改昵称失败');
+        });
+    });
+
+    document.getElementById('cancel-nickname').addEventListener('click', function() {
+        document.getElementById('nickname').style.display = 'inline';
+        document.getElementById('nickname-edit').style.display = 'none';
+        document.getElementById('save-nickname').style.display = 'none';
+        document.getElementById('cancel-nickname').style.display = 'none';
+    });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var flashMessages = document.getElementById('flash-messages');
+            if (flashMessages.innerHTML.trim() !== '') {
+                flashMessages.style.display = 'block';
+                // 在消息显示后立即清除会话中的消息
+                fetch('{% url 'clear_flash_messages' %}', { method: 'POST' });
+            }
+        });
+    </script>
+</body>
+</html>

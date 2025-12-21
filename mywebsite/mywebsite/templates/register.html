@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>注册</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+        }
+        .container {
+            max-width: 400px;
+            margin: 60px auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 32px 40px 40px 40px;
+        }
+        h1 {
+            text-align: center;
+        }
+        label {
+            display: block;
+            margin-top: 12px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            margin-top: 18px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部装饰 -->
+    <svg width="100%" height="80" style="position:absolute;top:0;left:0;z-index:-1;" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="20%" cy="40" rx="60" ry="25" fill="#e3f0ff" opacity="0.7"/>
+        <ellipse cx="80%" cy="30" rx="40" ry="15" fill="#c8e6ff" opacity="0.5"/>
+    </svg>
+    <div class="container">
+        <h1>注册</h1>
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+        <form method="POST">
+            {% csrf_token %}
+            <label for="username">用户名</label>
+            <input type="text" name="username" id="username" required>
+            
+            <label for="email">邮箱</label>
+            <input type="email" name="email" id="email" required>
+            
+            <label for="password">密码</label>
+            <input type="password" name="password" id="password" required>
+            
+            <label for="confirm_password">确认密码</label>
+            <input type="password" name="confirm_password" id="confirm_password" required>
+            
+            <label for="security_question">安全问题</label>
+            <input type="text" name="security_question" id="security_question" required placeholder="例如：你最喜欢的颜色是什么？">
+
+            <label for="security_answer">安全问题答案</label>
+            <input type="text" name="security_answer" id="security_answer" required placeholder="例如：蓝色">
+            
+            <button type="submit">注册</button>
+        </form>
+    </div>
+    <!-- 底部装饰 -->
+    <svg width="100%" height="80" style="position:absolute;bottom:0;left:0;z-index:-1;" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="80%" cy="40" rx="60" ry="25" fill="#e3f0ff" opacity="0.6"/>
+        <ellipse cx="20%" cy="60" rx="40" ry="15" fill="#c8e6ff" opacity="0.4"/>
+    </svg>
+</body>
+</html>

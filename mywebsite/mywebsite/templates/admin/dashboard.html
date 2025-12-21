@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>管理员面板</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: #f5f6fa;
+            padding-top: 70px;
+            position: relative;
+            min-height: 100vh;
+        }
+        
+        /* 背景装饰 */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background-image: 
+                radial-gradient(circle at 10% 10%, #e3f0ff 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, #c8e6ff 0%, transparent 40%);
+            opacity: 0.7;
+        }
+        
+        .container {
+            max-width: 1000px; /* 适当增加容器宽度 */
+            margin: 40px auto;
+            background: 
+                radial-gradient(circle at 0% 0%, #e3f0ff 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, #c8e6ff 0%, transparent 50%),
+                #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 32px 40px 40px 40px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .container::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: 
+                linear-gradient(90deg, #f8f9fa 2px, transparent 2px),
+                linear-gradient(0deg, #f8f9fa 2px, transparent 2px);
+            background-size: 40px 40px;
+            opacity: 0.2;
+            z-index: 0;
+        }
+        
+        h1, h2, h3 {
+            color: #333;
+            position: relative;
+            z-index: 2;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e3f0ff;
+            margin-bottom: 20px;
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            color: #007BFF;
+            margin: 25px 0 15px 0;
+        }
+        
+        h3 {
+            font-size: 1.3rem;
+            margin: 20px 0 10px 0;
+        }
+        
+        .avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            vertical-align: middle;
+            border: 1px solid #ccc;
+            margin-right: 4px;
+        }
+        
+        .btn, button[type="submit"] {
+            display: inline-block;
+            padding: 4px 10px; /* 减小内边距 */
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 12px; /* 减小字体大小 */
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 2;
+            margin-right: 6px; /* 调整间距 */
+            white-space: nowrap; /* 禁止文字换行 */
+        }
+        
+        .btn:hover, button[type="submit"]:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,123,255,0.2);
+        }
+        
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid #007BFF;
+            color: #007BFF;
+        }
+        
+        .btn-outline:hover {
+            background-color: #007BFF;
+            color: white;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+        }
+        
+        .btn-danger:hover {
+            background-color: #bb2d3b;
+            box-shadow: 0 4px 8px rgba(220, 53, 69, 0.2);
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+        }
+        
+        .btn-success:hover {
+            background-color: #218838;
+            box-shadow: 0 4px 8px rgba(40, 167, 69, 0.2);
+        }
+        
+        form {
+            display: inline; /* 改为inline避免表单自身占据整行 */
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        th, td {
+            padding: 12px 10px; /* 调整单元格内边距 */
+            text-align: left;
+            border-bottom: 1px solid #e3f0ff;
+        }
+        
+        /* 调整操作列宽度 */
+        td:last-child {
+            min-width: 280px; /* 为操作列设置最小宽度 */
+            white-space: nowrap; /* 禁止操作列内容换行 */
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 6px; /* 减小徽章内边距 */
+            border-radius: 12px;
+            font-size: 0.7rem; /* 减小徽章字体 */
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        
+        .badge-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .badge-primary {
+            background-color: #cce5ff;
+            color: #004085;
+        }
+        
+        .badge-warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        /* 标签页样式 */
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e3f0ff;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tab.active {
+            border-bottom-color: #007BFF;
+            color: #007BFF;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* 装饰角标 */
+        .corner-decorator {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e3f0ff;
+            opacity: 0.5;
+            z-index: 1;
+        }
+        
+        .corner-decorator:nth-child(1) {
+            top: -5px;
+            left: -5px;
+            border-right: none;
+            border-bottom: none;
+        }
+        
+        .corner-decorator:nth-child(2) {
+            top: -5px;
+            right: -5px;
+            border-left: none;
+            border-bottom: none;
+        }
+        
+        /* 装饰性飘带 */
+        .ribbon {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        
+        .ribbon::before {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 200%;
+            background: #007BFF;
+            opacity: 0.1;
+            transform: rotate(45deg);
+        }
+        
+        .ribbon-top-right { top: 0; right: 0; }
+        
+        /* 导航栏 */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: white;
+            padding: 10px 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .navbar-logo {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #007BFF;
+            text-decoration: none;
+        }
+        
+        .navbar-menu {
+            display: flex;
+            list-style: none;
+            gap: 20px;
+        }
+        
+        .navbar-menu a {
+            text-decoration: none;
+            color: #333;
+        }
+        
+        .navbar-menu a:hover {
+            color: #007BFF;
+        }
+        
+        /* 空状态样式 */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .empty-state i {
+            font-size: 50px;
+            color: #e3f0ff;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <a href="{% url 'home' %}" class="navbar-logo">论坛</a>
+        <ul class="navbar-menu">
+            <li><a href="{% url 'home' %}">首页</a></li>
+            <li><a href="{% url 'create_blog' %}">发布</a></li>
+            <li><a href="{% url 'user_profile' %}">个人中心</a></li>
+            <li><a href="{% url 'admin_dashboard' %}" style="color:#007BFF;">管理</a></li>
+            <li><a href="{% url 'logout' %}">退出</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <div class="ribbon ribbon-top-right"></div>
+        <div class="corner-decorator"></div>
+        <div class="corner-decorator"></div>
+        
+        <h1>管理员控制面板</h1>
+        
+        <!-- 标签页导航 -->
+        <div class="tabs">
+            <div class="tab active" data-tab="pending">待审核帖子</div>
+            <div class="tab" data-tab="all-blogs">所有帖子管理</div>
+            <div class="tab" data-tab="users">用户管理</div>
+        </div>
+        
+        <!-- 待审核帖子 -->
+        <div class="tab-content active" id="pending">
+            <h2>待审核帖子</h2>
+            
+            {% if pending_blogs %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>标题</th>
+                        <th>作者</th>
+                        <th>发布时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for blog in pending_blogs %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'blog_detail' blog_id=blog.id %}" style="color:#007BFF; text-decoration:none;">
+                                {{ blog.title }}
+                            </a>
+                        </td>
+                        <td>
+                            <img src="{% url 'get_avatar' filename=blog.author.avatar_path %}" alt="{{ blog.author.nickname }}的头像" class="avatar">
+                            {% if blog.author.nickname %}{{ blog.author.nickname }}{% else %}{{ blog.author.username }}{% endif %}
+                        </td>
+                        <td>{{ blog.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            <form method="POST" action="{% url 'admin_blog_action' blog_id=blog.id action='approve' %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-success">通过</button>
+                            </form>
+                            <form method="POST" action="{% url 'admin_blog_action' blog_id=blog.id action='reject' %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger">拒绝</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <i class="far fa-check-circle"></i>
+                <h3>没有待审核的帖子</h3>
+                <p>所有帖子都已审核完毕</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- 所有帖子管理 -->
+        <div class="tab-content" id="all-blogs">
+            <h2>所有帖子管理</h2>
+            
+            {% if all_blogs %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>标题</th>
+                        <th>作者</th>
+                        <th>状态</th>
+                        <th>发布时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for blog in all_blogs %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'blog_detail' blog_id=blog.id %}" style="color:#007BFF; text-decoration:none;">
+                                {{ blog.title }}
+                            </a>
+                            {% if blog.is_pinned %}
+                            <span class="badge badge-danger">置顶</span>
+                            {% endif %}
+                            {% if blog.is_featured %}
+                            <span class="badge badge-primary">精华</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <img src="{% url 'get_avatar' filename=blog.author.avatar_path %}" alt="{{ blog.author.nickname }}的头像" class="avatar">
+                            {% if blog.author.nickname %}{{ blog.author.nickname }}{% else %}{{ blog.author.username }}{% endif %}
+                        </td>
+                        <td>
+                            {% if blog.is_approved %}
+                            <span class="badge badge-success">已通过</span>
+                            {% else %}
+                            <span class="badge badge-warning">未通过</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ blog.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            <form method="POST" action="{% url 'admin_blog_action' blog_id=blog.id action='pin' %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline">
+                                    {% if blog.is_pinned %}取消置顶{% else %}置顶{% endif %}
+                                </button>
+                            </form>
+                            <form method="POST" action="{% url 'admin_blog_action' blog_id=blog.id action='feature' %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline">
+                                    {% if blog.is_featured %}取消加精{% else %}加精{% endif %}
+                                </button>
+                            </form>
+                            <form method="POST" action="{% url 'admin_blog_action' blog_id=blog.id action='delete' %}" style="display:inline;" onsubmit="return confirm('确定要删除这篇帖子吗？')">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <i class="far fa-file-alt"></i>
+                <h3>暂无帖子</h3>
+                <p>论坛中还没有任何帖子</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- 用户管理 -->
+        <div class="tab-content" id="users">
+            <h2>用户管理</h2>
+            
+            {% if users %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>用户名</th>
+                        <th>昵称</th>
+                        <th>注册时间</th>
+                        <th>权限</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>
+                            <img src="{% url 'get_avatar' filename=user.avatar_path %}" alt="{{ user.nickname }}的头像" class="avatar">
+                            {{ user.username }}
+                        </td>
+                        <td>{% if user.nickname %}{{ user.nickname }}{% else %}未设置{% endif %}</td>
+                        <td>{{ user.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            {% if user.is_root_admin %}
+                            <span class="badge badge-danger">根管理员</span>
+                            {% elif user.is_admin %}
+                            <span class="badge badge-primary">管理员</span>
+                            {% else %}
+                            <span class="badge badge-success">普通用户</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if request.user.is_root_admin and user.id != request.user.id %}
+                                {% if user.is_admin %}
+                                <form method="POST" action="{% url 'remove_admin' user_id=user.id %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-danger">移除管理员</button>
+                                </form>
+                                {% else %}
+                                <form method="POST" action="{% url 'make_admin' user_id=user.id %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-success">设为管理员</button>
+                                </form>
+                                {% endif %}
+                                
+                                {% if not user.is_root_admin %}
+                                <form method="POST" action="{% url 'transfer_root' user_id=user.id %}" style="display:inline;" onsubmit="return confirm('确定要将根管理员权限移交给 {{ user.username }} 吗？这将使您失去根管理员权限。')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline">移交根权限</button>
+                                </form>
+                                {% endif %}
+                            {% else %}
+                                <span style="color:#999;">无操作权限</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <i class="far fa-users"></i>
+                <h3>暂无用户</h3>
+                <p>还没有用户注册</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <script>
+        // 标签页切换功能
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // 移除所有活动状态
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // 添加当前活动状态
+                tab.classList.add('active');
+                const tabId = tab.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

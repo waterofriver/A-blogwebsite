@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>首页</title>
+    <meta charset="UTF-8">
+    <!-- 引入Font Awesome图标库（用于搜索、管理员图标等） -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding-top: 20px; /* 避免顶部装饰遮挡内容 */
+            background: 
+                linear-gradient(135deg, #f5f6fa 21px, #e3f0ff 22px, #e3f0ff 24px, transparent 24px, transparent 67px, #e3f0ff 67px, #e3f0ff 69px, transparent 69px),
+                linear-gradient(225deg, #f5f6fa 21px, #e3f0ff 22px, #e3f0ff 24px, transparent 24px, transparent 67px, #e3f0ff 67px, #e3f0ff 69px, transparent 69px)0 64px;
+            background-color: #f5f6fa;
+            background-size: 64px 128px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 32px 40px 40px 40px;
+            position: relative;
+            z-index: 1;
+            background-image: 
+                linear-gradient(45deg, #f8f9fa 25%, transparent 25%),
+                linear-gradient(-45deg, #f8f9fa 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #f8f9fa 75%),
+                linear-gradient(-45deg, transparent 75%, #f8f9fa 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 10% 20%, #e3f0ff 1px, transparent 1px),
+                radial-gradient(circle at 90% 80%, #c8e6ff 1px, transparent 1px);
+            background-size: 30px 30px;
+            opacity: 0.3;
+            z-index: 0;
+        }
+        .container::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: 
+                radial-gradient(circle at 50% 0%, #e3f0ff 0%, transparent 75%),
+                radial-gradient(circle at 50% 100%, #c8e6ff 0%, transparent 75%);
+            opacity: 0.3;
+            z-index: -1;
+            pointer-events: none;
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e3f0ff;
+        }
+        a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .blog-list {
+            list-style-type: none;
+            padding: 0;
+            position: relative;
+            z-index: 2;
+        }
+        .blog-list li {
+            margin-bottom: 18px;
+            background: linear-gradient(145deg, #ffffff, #f8f9fa);
+            border-radius: 6px;
+            padding: 14px 18px;
+            box-shadow: 5px 5px 10px #e6e6e6, -5px -5px 10px #ffffff;
+            line-height: 1.5;
+            position: relative;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        .blog-list li:hover {
+            transform: translateX(5px);
+            border-left: 4px solid #007BFF;
+            background: linear-gradient(to right, #f8f9fa, #ffffff);
+        }
+        .blog-list li a {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .blog-list::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #e3f0ff, transparent);
+        }
+        .blog-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+        .timestamp {
+            background: #e3f0ff;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .blog-list li small {
+            color: #666;
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 15px;
+            margin-bottom: 10px;
+            transition: background 0.2s, transform 0.2s;
+            position: relative;
+            z-index: 2;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid #007BFF;
+            color: #007BFF;
+        }
+        .btn-outline:hover {
+            background-color: #007BFF;
+            color: white;
+        }
+        .avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            vertical-align: middle;
+            border: 1px solid #ccc;
+            margin-right: 6px;
+            position: relative;
+            top: -1px;
+        }
+        .top-bar {
+            margin-bottom: 18px;
+            position: relative;
+            z-index: 2;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .search-container {
+            margin: 15px 0;
+            position: relative;
+            z-index: 2;
+        }
+        .search-form {
+            display: flex;
+            gap: 8px;
+        }
+        .search-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            max-width: 500px;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+        .badge-pinned {
+            background-color: #ffeeba;
+            color: #856404;
+        }
+        .badge-featured {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        /* 装饰元素保持不变 */
+        .decorator-line {
+            position: absolute;
+            width: 2px;
+            height: 60px;
+            background: linear-gradient(to bottom, #007BFF20, transparent);
+        }
+        .decorator-line:nth-child(1) { top: 0; left: 20%; }
+        .decorator-line:nth-child(2) { top: 0; right: 20%; }
+        .line-decorator {
+            position: absolute;
+            width: 2px;
+            background: linear-gradient(to bottom, #007BFF10, transparent);
+        }
+        .line-decorator:nth-child(1) { height: 80px; top: 0; left: 15%; }
+        .line-decorator:nth-child(2) { height: 120px; top: 40px; left: 85%; }
+        .line-decorator:nth-child(3) { height: 60px; bottom: 0; left: 35%; }
+        .wave-decoration {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: #e3f0ff;
+            opacity: 0.1;
+            clip-path: polygon(
+                0% 0%, 100% 0%, 100% 100%,
+                90% 80%, 80% 90%, 70% 80%, 
+                60% 90%, 50% 80%, 40% 90%, 
+                30% 80%, 20% 90%, 10% 80%, 0% 100%
+            );
+        }
+        .wave-top { top: 0; transform: rotate(180deg); }
+        .wave-bottom { bottom: 0; }
+    </style>
+</head>
+<body>
+    <!-- 顶部装饰 -->
+    <svg width="100%" height="90" style="position:absolute;top:0;left:0;z-index:-1;" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,60 Q200,0 400,60 T800,60 V90 H0 Z" fill="#e3f0ff" opacity="0.7"/>
+        <ellipse cx="90%" cy="30" rx="80" ry="30" fill="#c8e6ff" opacity="0.5"/>
+    </svg>
+    
+    <div class="container">
+        <div class="wave-decoration wave-top"></div>
+        
+        <h1>最新帖子</h1>
+        
+        <!-- 搜索框 -->
+        <div class="search-container">
+            <form method="get" action="{% url 'search' %}" class="search-form">
+                <input type="text" name="query" placeholder="搜索帖子标题、作者..." class="search-input">
+                <button type="submit" class="btn">
+                    <i class="fas fa-search"></i> 搜索
+                </button>
+            </form>
+        </div>
+        
+        <!-- 顶部操作栏：博客筛选 + 功能入口 -->
+        <div class="top-bar">
+            <div>
+                <a href="{% url 'home' %}?mine=true">仅显示我的发帖</a> | 
+                <a href="{% url 'home' %}">显示所有帖子</a>
+            </div>
+            <div class="actions">
+                <!-- 管理员入口（仅管理员可见） -->
+                {% if request.user.is_admin %}
+                    <a href="{% url 'admin_dashboard' %}" class="btn btn-outline">
+                        <i class="fas fa-cog"></i> 管理员面板
+                    </a>
+                {% endif %}
+                <!-- 退出登录 -->
+                <a href="http://localhost:3000/main" class="btn btn-outline" target="_blank" rel="noopener noreferrer">
+                    <i class="fas fa-home"></i> 返回主页面
+                </a>
+                <!-- 退出登录 -->
+                <a href="{% url 'logout' %}" class="btn btn-outline">
+                    <i class="fas fa-sign-out-alt"></i> 退出
+                </a>
+            </div>
+        </div>
+        
+        <!-- 创建帖子按钮 -->
+        <a href="{% url 'create_blog' %}" class="btn">
+            <i class="fas fa-plus"></i> 创建新帖子
+        </a>
+        
+        <!-- 帖子列表 -->
+        <ul class="blog-list">
+            {% for blog in blogs %}
+                <li>
+                    <!-- 帖子标题 + 标签（置顶/加精） -->
+                    <a href="{% url 'blog_detail' blog_id=blog.id %}">
+                        {{ blog.title }}
+                        {% if blog.is_pinned %}
+                            <span class="badge badge-pinned">置顶</span>
+                        {% endif %}
+                        {% if blog.is_featured %}
+                            <span class="badge badge-featured">加精</span>
+                        {% endif %}
+                    </a>
+                    <!-- 帖子元数据：作者、时间 -->
+                    <div class="blog-meta">
+                        <small>作者：
+                            <img src="/media/{{ blog.author.avatar_path|default:'default-avatar.jpg' }}" alt="头像" class="avatar">
+                            {% if blog.author.nickname %}{{ blog.author.nickname }}{% else %}{{ blog.author.username }}{% endif %}
+                        </small>
+                        <small class="timestamp">{{ blog.created_at|date:"Y-m-d H:i" }}</small>
+                        <!-- 浏览量和点赞数 -->
+                        <small><i class="far fa-eye"></i> {{ blog.views_count }}</small>
+                        <small><i class="far fa-heart"></i> {{ blog.likes_count }}</small>
+                    </div>
+                </li>
+            {% empty %}
+                <!-- 空状态提示 -->
+                <li style="text-align: center; padding: 30px; color: #666;">
+                    <i class="fas fa-file-alt" style="font-size: 40px; margin-bottom: 10px; color: #e3f0ff;"></i>
+                    <p>暂无帖子内容</p>
+                </li>
+            {% endfor %}
+        </ul>
+        
+        <!-- 个人资料入口 -->
+        <p style="text-align:right; margin-top: 20px;">
+            <a href="{% url 'user_profile' %}" class="btn">
+                <i class="fas fa-user"></i> 个人资料
+            </a>
+        </p>
+        
+        <div class="wave-decoration wave-bottom"></div>
+    </div>
+    
+    <!-- 底部装饰 -->
+    <svg width="100%" height="90" style="position:absolute;bottom:0;left:0;z-index:-1;" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,30 Q200,90 400,30 T800,30 V90 H0 Z" fill="#e3f0ff" opacity="0.6"/>
+        <ellipse cx="10%" cy="60" rx="60" ry="20" fill="#c8e6ff" opacity="0.4"/>
+    </svg>
+</body>
+</html>
