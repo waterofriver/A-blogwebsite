@@ -1515,7 +1515,7 @@ export function DesignaliCreative() {
                             <h2 className="mt-2 text-3xl font-bold md:text-4xl">实验全流程手册</h2>
                           </div>
                           <p className="max-w-[560px] text-white/85">
-                            一键访问实验先导到实验九的所有讲义、压缩包与演示视频，目前同步至 {syncedLabel || '最新进度'}。
+                            更新至实验一至实验七。
                           </p>
                           <Button className="rounded-2xl bg-white text-rose-600 hover:bg-white/90" asChild>
                             <Link href={HANDBOOK_LINK} target="_blank">
@@ -1650,15 +1650,14 @@ export function DesignaliCreative() {
                                   <Button
                                     asChild
                                     size="sm"
-                                    variant="outline"
-                                    className="rounded-2xl flex-1 border-white/50 text-white hover:bg-white/10"
+                                    className="rounded-2xl flex-1 bg-black/30 text-white hover:bg-black/40"
                                   >
                                     <Link href={downloadHref} target="_blank">
                                       下载
                                     </Link>
                                   </Button>
                                 ) : (
-                                  <Button size="sm" variant="outline" className="rounded-2xl flex-1" disabled>
+                                  <Button size="sm" className="rounded-2xl flex-1 opacity-60" disabled>
                                     下载
                                   </Button>
                                 )}
@@ -1766,13 +1765,17 @@ export function DesignaliCreative() {
                                     </Button>
                                   )}
                                   {downloadHref ? (
-                                    <Button asChild size="sm" variant="outline" className="rounded-2xl flex-1">
+                                    <Button
+                                      asChild
+                                      size="sm"
+                                      className="rounded-2xl flex-1 bg-primary text-white hover:bg-primary/90"
+                                    >
                                       <Link href={downloadHref} target="_blank">
                                         下载
                                       </Link>
                                     </Button>
                                   ) : (
-                                    <Button size="sm" variant="outline" className="rounded-2xl flex-1" disabled>
+                                    <Button size="sm" className="rounded-2xl flex-1" disabled>
                                       下载
                                     </Button>
                                   )}
