@@ -1557,19 +1557,19 @@ export function DesignaliCreative() {
                         {videoList.map((video) => (
                           <Card
                             key={video.id}
-                            className="cursor-pointer rounded-3xl transition hover:-translate-y-1 hover:border-primary"
+                            className="cursor-pointer rounded-3xl bg-slate-800/6 shadow-sm transition hover:-translate-y-1 hover:border-primary"
                             onClick={() => openPreview(video)}
                           >
-                            <CardHeader className="pb-2">
+                            <CardHeader className="pb-2 p-4 rounded-t-3xl bg-gradient-to-r from-teal-700 via-emerald-600 to-teal-600 text-white">
                               <div className="flex items-center justify-between">
-                                <CardTitle className="text-lg">{video.label}</CardTitle>
-                                <Badge className="rounded-xl">{video.category_display}</Badge>
+                                <CardTitle className="text-lg text-white">{video.label}</CardTitle>
+                                <Badge className="rounded-xl bg-white/20 text-white/95">{video.category_display}</Badge>
                               </div>
-                              <CardDescription>点击播放 / 支持在线预览</CardDescription>
+                              <CardDescription className="text-white/90">点击播放 / 支持在线预览</CardDescription>
                             </CardHeader>
-                            <CardContent>
-                              <div className="aspect-video rounded-2xl bg-muted flex items-center justify-center text-sm text-muted-foreground">
-                                <Play className="mr-2 h-4 w-4" /> 实验视频
+                            <CardContent className="p-4 rounded-b-3xl bg-gradient-to-t from-teal-700/20 via-emerald-600/8 to-teal-600/20">
+                              <div className="aspect-video rounded-2xl bg-gradient-to-br from-teal-700/12 via-emerald-600/8 to-teal-500/12 flex items-center justify-center text-sm text-white shadow-md">
+                                <Play className="mr-2 h-4 w-4 text-white" /> 实验视频
                               </div>
                             </CardContent>
                           </Card>
