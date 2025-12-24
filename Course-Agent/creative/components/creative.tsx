@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Award,
@@ -12,7 +12,6 @@ import {
   ChevronDown,
   Cloud,
   Code,
-  Crown,
   Download,
   FileText,
   Grid,
@@ -21,7 +20,6 @@ import {
   ImageIcon,
   Layers,
   LayoutGrid,
-  Lightbulb,
   Menu,
   MessageSquare,
   Palette,
@@ -34,7 +32,6 @@ import {
   Sparkles,
   Star,
   Trash,
-  TrendingUp,
   Users,
   Video,
   Wand2,
@@ -67,6 +64,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 
 // 应用示例数据
 const apps = [
@@ -368,12 +366,51 @@ const initialCommunityPosts = [
   },
 ]
 
+const RESOURCES_API_BASE =
+  (process.env.NEXT_PUBLIC_RESOURCES_API && process.env.NEXT_PUBLIC_RESOURCES_API.replace(/\/$/, "")) ||
+  "http://127.0.0.1:8000/api/resources"
+const HANDBOOK_LINK = "https://note.youdao.com/s/3EprlwzR"
+
+type CatalogAttachment = {
+  id: string
+  category: string
+  category_display: string
+  category_order?: number
+  item_name?: string
+  item_label?: string
+  label: string
+  filename: string
+  file_type: string
+  media_url?: string
+  preview_url?: string
+  download_url?: string
+  html_preview_url?: string | null
+  orig_name?: string
+  supports_inline_preview?: boolean
+}
+
+type ExperimentBucket = {
+  category: string
+  category_display: string
+  order: number
+  items: CatalogAttachment[]
+  files_count?: number
+}
+
+type MaterialsCatalog = {
+  updated_at: string | null
+  synced_to: { order: number | null; label: string | null } | null
+  experiments: ExperimentBucket[]
+  videos: CatalogAttachment[]
+  books: CatalogAttachment[]
+}
+
 // 侧边导航简化为四项（保留框架）
 const sidebarItems = [
   { title: "首页", icon: <Home />, url: "#home", isActive: true },
   { title: "社区", icon: <Users />, url: "http://127.0.0.1:8000/" },
-  { title: "学习", icon: <BookOpen />, url: "#learn" },
   { title: "资源", icon: <Bookmark />, url: "#resources" },
+  { title: "学习", icon: <BookOpen />, url: "#learn" },
 ]
 
 
@@ -386,6 +423,32 @@ export function DesignaliCreative() {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({})
   // community posts loaded from backend API (fallback to initial data)
   const [communityPostsState, setCommunityPostsState] = useState<any[]>(initialCommunityPosts)
+  const [materialsCatalog, setMaterialsCatalog] = useState<MaterialsCatalog | null>(null)
+  const [catalogLoading, setCatalogLoading] = useState(false)
+  const [catalogError, setCatalogError] = useState<string | null>(null)
+  const [previewResource, setPreviewResource] = useState<CatalogAttachment | null>(null)
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [selectedExperiment, setSelectedExperiment] = useState<ExperimentBucket | null>(null)
+
+  const loadCatalog = useCallback(() => {
+    setCatalogError(null)
+    setCatalogLoading(true)
+    fetch(`${RESOURCES_API_BASE}/catalog/`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
+      .then((data: MaterialsCatalog) => {
+        setMaterialsCatalog(data)
+      })
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error('加载实验资源失败', err)
+        setCatalogError('资源数据加载失败，请稍后重试')
+      })
+      .finally(() => setCatalogLoading(false))
+  }, [])
 
   // 简化模式：隐藏首页/学习/资源中的次要小组件，方便与后端社区对接
   const simplifyUI = true
@@ -447,6 +510,10 @@ export function DesignaliCreative() {
       })
   }, [])
 
+  useEffect(() => {
+    loadCatalog()
+  }, [loadCatalog])
+
   // 模拟进度加载
   useEffect(() => {
     const timer = setTimeout(() => setProgress(100), 1000)
@@ -458,6 +525,44 @@ export function DesignaliCreative() {
       ...prev,
       [title]: !prev[title],
     }))
+  }
+
+  const experimentBuckets = materialsCatalog?.experiments || []
+  const videoList = materialsCatalog?.videos || []
+  const bookList = materialsCatalog?.books || []
+  const syncedLabel = materialsCatalog?.synced_to?.label
+  const formattedUpdatedAt = materialsCatalog?.updated_at
+    ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(
+        new Date(materialsCatalog.updated_at),
+      )
+    : null
+
+  const openPreview = useCallback((item: CatalogAttachment | null) => {
+    if (!item) return
+    setPreviewResource(item)
+    if (item.html_preview_url) {
+      setPreviewLoading(true)
+      fetch(item.html_preview_url)
+        .then((res) => (res.ok ? res.json() : Promise.reject(res.statusText)))
+        .then((data) => {
+          setPreviewHtml(data.html || '<p>暂无内容</p>')
+        })
+        .catch(() => setPreviewHtml('<p>预览失败，请下载查看</p>'))
+        .finally(() => setPreviewLoading(false))
+    } else {
+      setPreviewHtml(null)
+      setPreviewLoading(false)
+    }
+  }, [])
+
+  const getPreviewSrc = useCallback((item: CatalogAttachment | null) => {
+    if (!item) return null
+    return item.preview_url || item.media_url || null
+  }, [])
+
+  const isVideoResource = (item: CatalogAttachment | null) => {
+    if (!item) return false
+    return ['mp4', 'mov', 'avi', 'wmv', 'mkv'].includes(item.file_type)
   }
 
   return (
@@ -721,12 +826,15 @@ export function DesignaliCreative() {
         <main className="flex-1 p-4 md:p-6">
           <Tabs defaultValue="home" value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <TabsList className="grid w-full max-w-[600px] grid-cols-3 rounded-2xl p-1">
+              <TabsList className="grid w-full max-w-[800px] grid-cols-4 rounded-2xl p-1">
                 <TabsTrigger value="home" className="rounded-xl data-[state=active]:rounded-xl">
                   首页
                 </TabsTrigger>
                 <TabsTrigger value="apps" className="rounded-xl data-[state=active]:rounded-xl">
                   社区
+                </TabsTrigger>
+                <TabsTrigger value="resources" className="rounded-xl data-[state=active]:rounded-xl">
+                  资源
                 </TabsTrigger>
                 <TabsTrigger value="learn" className="rounded-xl data-[state=active]:rounded-xl">
                   学习
@@ -960,6 +1068,18 @@ export function DesignaliCreative() {
                       ))}
                     </div>
                   </section>
+                </TabsContent>
+
+                <TabsContent value="learn" className="space-y-6 mt-0" id="learn-section">
+                  <Card className="rounded-3xl border-dashed">
+                    <CardContent className="p-8 text-center space-y-3">
+                      <Badge className="rounded-xl">学习中心</Badge>
+                      <h2 className="text-2xl font-semibold">内容筹备中</h2>
+                      <p className="text-muted-foreground">
+                        此板块将用于展示课程路线与学习数据，目前暂未开放，后续接入后端即可自动填充。
+                      </p>
+                    </CardContent>
+                  </Card>
                 </TabsContent>
 
                 <TabsContent value="apps" className="space-y-8 mt-0">
@@ -1379,241 +1499,296 @@ export function DesignaliCreative() {
                   </section>
                 </TabsContent>
 
-                <TabsContent value="learn" className="space-y-8 mt-0">
+                <TabsContent value="resources" className="space-y-8 mt-0" id="resources-section">
                   <section>
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5 }}
-                      className="overflow-hidden rounded-3xl bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 p-8 text-white"
+                      className="overflow-hidden rounded-3xl bg-gradient-to-r from-rose-500 via-fuchsia-500 to-indigo-500 p-8 text-white shadow-xl"
                     >
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div className="space-y-2">
-                          <h2 className="text-3xl font-bold">学习与进阶</h2>
-                          <p className="max-w-[600px] text-white/80">通过教程、课程与资源拓展你的创意技能。</p>
+                      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                        <div className="space-y-4">
+                          <Badge className="rounded-2xl bg-white/20 text-white">资源矩阵</Badge>
+                          <div>
+                            <p className="text-sm uppercase tracking-[0.3em] text-white/70">Labs · Docs · Videos</p>
+                            <h2 className="mt-2 text-3xl font-bold md:text-4xl">实验全流程手册</h2>
+                          </div>
+                          <p className="max-w-[560px] text-white/85">
+                            更新至实验一至实验七。
+                          </p>
+                          <Button className="rounded-2xl bg-white text-rose-600 hover:bg-white/90" asChild>
+                            <Link href={HANDBOOK_LINK} target="_blank">
+                              查看云端手册
+                            </Link>
+                          </Button>
                         </div>
-                        <Button className="w-fit rounded-2xl bg-white text-emerald-700 hover:bg-white/90">
-                          <Crown className="mr-2 h-4 w-4" />
-                          升级专业版
-                        </Button>
+                        <div className="rounded-3xl bg-white/15 p-6 text-right backdrop-blur">
+                          <p className="text-sm text-white/70">最近同步</p>
+                          <p className="text-2xl font-semibold">{formattedUpdatedAt || '加载中'}</p>
+                        </div>
                       </div>
                     </motion.div>
                   </section>
 
-                  <div className="flex flex-wrap gap-3 mb-6">
-                    <Button variant="outline" className="rounded-2xl">
-                      <Play className="mr-2 h-4 w-4" />
-                      全部教程
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl">
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      系统课程
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl">
-                      <Lightbulb className="mr-2 h-4 w-4" />
-                      技巧小贴士
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl">
-                      <TrendingUp className="mr-2 h-4 w-4" />
-                      热门
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl">
-                      <Bookmark className="mr-2 h-4 w-4" />
-                      已收藏
-                    </Button>
-                    <div className="flex-1"></div>
-                    <div className="relative w-full md:w-auto mt-3 md:mt-0">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="search"
-                        placeholder="搜索教程..."
-                        className="w-full rounded-2xl pl-9 md:w-[200px]"
-                      />
-                    </div>
-                  </div>
+                  {catalogError && (
+                    <Card className="rounded-3xl border-red-200 bg-red-50/60 text-red-700">
+                      <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+                        <span>{catalogError}</span>
+                        <Button size="sm" className="rounded-2xl" onClick={loadCatalog}>
+                          重新加载
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   <section className="space-y-4">
-                    <h2 className="text-2xl font-semibold">精选教程</h2>
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                      {tutorials.slice(0, 3).map((tutorial) => (
-                        <motion.div key={tutorial.title} whileHover={{ scale: 1.02, y: -5 }} whileTap={{ scale: 0.98 }}>
-                          <Card className="overflow-hidden rounded-3xl">
-                            <div className="aspect-video overflow-hidden bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 relative">
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <Button size="icon" variant="secondary" className="h-14 w-14 rounded-full">
-                                  <Play className="h-6 w-6" />
-                                </Button>
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-2xl font-semibold">精选实验视频</h2>
+                    </div>
+                    {catalogLoading && videoList.length === 0 ? (
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {[1, 2, 3].map((skeleton) => (
+                          <Card key={skeleton} className="rounded-3xl animate-pulse bg-muted/40 h-48" />
+                        ))}
+                      </div>
+                    ) : videoList.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {videoList.map((video) => (
+                          <Card
+                            key={video.id}
+                            className="cursor-pointer rounded-3xl bg-slate-800/6 shadow-sm transition hover:-translate-y-1 hover:border-primary"
+                            onClick={() => openPreview(video)}
+                          >
+                            <CardHeader className="pb-2 p-4 rounded-t-3xl bg-gradient-to-r from-teal-700 via-emerald-600 to-teal-600 text-white">
+                              <div className="flex items-center justify-between">
+                                <CardTitle className="text-lg text-white">{video.label}</CardTitle>
+                                <Badge className="rounded-xl bg-white/20 text-white/95">{video.category_display}</Badge>
                               </div>
-                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 text-white">
-                                <Badge className="bg-white/20 text-white hover:bg-white/30 rounded-xl">
-                                  {tutorial.category}
-                                </Badge>
-                                <h3 className="mt-2 text-lg font-medium">{tutorial.title}</h3>
-                              </div>
-                            </div>
-                            <CardContent className="p-4">
-                              <p className="text-sm text-muted-foreground">{tutorial.description}</p>
-                              <div className="mt-4 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarFallback>{tutorial.instructor.charAt(0)}</AvatarFallback>
-                                  </Avatar>
-                                  <span className="text-sm">{tutorial.instructor}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <Clock className="h-4 w-4" />
-                                  {tutorial.duration}
-                                </div>
+                              <CardDescription className="text-white/90">点击播放 / 支持在线预览</CardDescription>
+                            </CardHeader>
+                            <CardContent className="p-4 rounded-b-3xl bg-gradient-to-t from-teal-700/20 via-emerald-600/8 to-teal-600/20">
+                              <div className="aspect-video rounded-2xl bg-gradient-to-br from-teal-700/12 via-emerald-600/8 to-teal-500/12 flex items-center justify-center text-sm text-white shadow-md">
+                                <Play className="mr-2 h-4 w-4 text-white" /> 实验视频
                               </div>
                             </CardContent>
-                            <CardFooter className="flex items-center justify-between border-t p-4">
-                              <Badge variant="outline" className="rounded-xl">
-                                {tutorial.level}
-                              </Badge>
-                              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                <Eye className="h-4 w-4" />
-                                {tutorial.views} 次浏览
-                              </div>
-                            </CardFooter>
                           </Card>
-                        </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <Card className="rounded-3xl">
+                        <CardContent className="p-6 text-center text-muted-foreground">
+                          暂无视频，可在 uploads/materials 中新增 mp4 后自动出现。
+                        </CardContent>
+                      </Card>
+                    )}
+                  </section>
+
+                  <section className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-2xl font-semibold">课程实验</h2>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                      {experimentBuckets.map((bucket, idx) => (
+                        <Card
+                          key={bucket.category}
+                          className="rounded-3xl border-0 bg-gradient-to-br from-slate-900/80 via-slate-800/70 to-slate-900/60 text-white shadow-lg cursor-pointer transition hover:-translate-y-1"
+                          onClick={() => setSelectedExperiment(bucket)}
+                        >
+                          <CardHeader className="pb-2 text-white">
+                            <div className="flex items-center justify-between">
+                              <Badge className="rounded-xl bg-white/20 text-white">{bucket.order === 0 ? '先导' : `实验 ${bucket.order}`}</Badge>
+                              <span className="text-xs text-white/70">{bucket.files_count || 0} 个文件</span>
+                            </div>
+                            <CardTitle className="mt-2">{bucket.category_display}</CardTitle>
+                            <CardDescription className="text-white/80">点击展开查看压缩包 / 讲义 / 视频</CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <Progress value={((idx + 1) / (experimentBuckets.length || 1)) * 100} className="h-2 rounded-xl bg-white/20" />
+                            <p className="mt-2 text-xs text-white/70">自动整理自材料库</p>
+                          </CardContent>
+                        </Card>
                       ))}
                     </div>
                   </section>
 
                   <section className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-2xl font-semibold">热门课程</h2>
-                      <Button variant="ghost" className="rounded-2xl">
-                        查看全部
-                      </Button>
+                      <h2 className="text-2xl font-semibold">推荐书籍</h2>
                     </div>
-                    <div className="rounded-3xl border overflow-hidden">
-                      <div className="divide-y">
-                        {tutorials.slice(3, 5).map((tutorial) => (
-                          <motion.div
-                            key={tutorial.title}
-                            whileHover={{ scale: 1.02, y: -5 }}
-                            whileTap={{ scale: 0.98 }}
-                            className="p-4 flex flex-col md:flex-row gap-3"
-                          >
-                            <div className="flex-shrink-0">
-                              <div className="relative h-20 w-20 overflow-hidden rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600">
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <Play className="h-8 w-8 text-white" />
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-medium">{tutorial.title}</h3>
-                              <p className="text-sm text-muted-foreground">{tutorial.description}</p>
-                              <div className="mt-2 flex flex-wrap items-center gap-3">
-                                <Badge variant="outline" className="rounded-xl">
-                                  {tutorial.level}
-                                </Badge>
-                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                  <Clock className="h-3 w-3" />
-                                  {tutorial.duration}
-                                </div>
-                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                  <Eye className="h-3 w-3" />
-                                  {tutorial.views} 次浏览
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center">
-                              <Button variant="ghost" size="sm" className="rounded-xl">
-                                立即学习
-                              </Button>
-                            </div>
-                          </motion.div>
+                    {catalogLoading && bookList.length === 0 ? (
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        {[1, 2, 3].map((skeleton) => (
+                          <Card key={skeleton} className="rounded-3xl animate-pulse bg-muted/40 h-40" />
                         ))}
                       </div>
-                    </div>
+                    ) : bookList.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        {bookList.map((book) => {
+                          const previewHref = book.preview_url || book.media_url
+                          const downloadHref = book.download_url
+                          return (
+                            <Card key={book.id} className="rounded-3xl flex flex-col border-0 bg-gradient-to-br from-amber-500/80 via-orange-500/70 to-rose-500/70 text-white shadow-lg">
+                              <CardHeader className="pb-2">
+                                <CardTitle>{book.label}</CardTitle>
+                                <CardDescription className="text-white/80">{book.category_display || book.category}</CardDescription>
+                              </CardHeader>
+                              <CardContent className="text-sm text-white/80">
+                                文件类型：{book.file_type?.toUpperCase() || '未知'}
+                              </CardContent>
+                              <CardFooter className="mt-auto gap-2">
+                                {previewHref ? (
+                                  <Button size="sm" className="rounded-2xl flex-1 bg-white text-amber-600 hover:bg-white/90" onClick={() => openPreview(book)}>
+                                    预览
+                                  </Button>
+                                ) : (
+                                  <Button size="sm" className="rounded-2xl flex-1" disabled>
+                                    预览
+                                  </Button>
+                                )}
+                                {downloadHref ? (
+                                  <Button
+                                    asChild
+                                    size="sm"
+                                    className="rounded-2xl flex-1 bg-black/30 text-white hover:bg-black/40"
+                                  >
+                                    <Link href={downloadHref} target="_blank">
+                                      下载
+                                    </Link>
+                                  </Button>
+                                ) : (
+                                  <Button size="sm" className="rounded-2xl flex-1 opacity-60" disabled>
+                                    下载
+                                  </Button>
+                                )}
+                              </CardFooter>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <Card className="rounded-3xl">
+                        <CardContent className="p-6 text-center text-muted-foreground">
+                          暂无参考书籍，可将文件放入参考分类后自动载入。
+                        </CardContent>
+                      </Card>
+                    )}
                   </section>
 
-                  <section className="space-y-4">
-                    <h2 className="text-2xl font-semibold">学习路线</h2>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                      <Card className="overflow-hidden rounded-3xl border-2 hover:border-primary/50 transition-all duration-300">
-                        <CardHeader className="pb-2">
-                          <div className="flex items-center justify-between">
-                            <Badge className="rounded-xl bg-blue-500">入门</Badge>
-                            <Award className="h-5 w-5 text-amber-500" />
-                          </div>
-                          <CardTitle className="mt-2">UI/UX 设计基础</CardTitle>
-                          <CardDescription>掌握用户界面与体验设计的核心要点</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span>8 门课程 • 24 小时</span>
-                              <span>4.8 ★</span>
-                            </div>
-                            <Progress value={30} className="h-2 rounded-xl" />
-                            <p className="text-xs text-muted-foreground">已完成 30%</p>
-                          </div>
-                        </CardContent>
-                        <CardFooter>
-                          <Button variant="secondary" className="w-full rounded-2xl">
-                            继续学习
+                  <Dialog
+                    open={!!previewResource}
+                    onOpenChange={(open) => {
+                      if (!open) {
+                        setPreviewResource(null)
+                        setPreviewHtml(null)
+                        setPreviewLoading(false)
+                      }
+                    }}
+                  >
+                    <DialogContent className="max-w-4xl">
+                      <DialogHeader>
+                        <DialogTitle>{previewResource?.label}</DialogTitle>
+                        <DialogDescription>{previewResource?.category_display}</DialogDescription>
+                      </DialogHeader>
+                      {(() => {
+                        if (previewResource?.html_preview_url) {
+                          if (previewLoading) {
+                            return <p className="text-sm text-muted-foreground">预览生成中...</p>
+                          }
+                          return (
+                            <div
+                              className="max-h-[70vh] overflow-y-auto rounded-2xl border bg-white p-6"
+                              dangerouslySetInnerHTML={{ __html: previewHtml || '<p class="text-center text-muted-foreground">暂无内容</p>' }}
+                            />
+                          )
+                        }
+                        const src = getPreviewSrc(previewResource)
+                        if (!src) {
+                          return <p className="text-sm text-muted-foreground">暂无法预览此文件，可尝试下载查看。</p>
+                        }
+                        if (isVideoResource(previewResource)) {
+                          return <video controls className="w-full rounded-2xl" src={src} />
+                        }
+                        return (
+                          <iframe
+                            src={src}
+                            className="h-[70vh] w-full rounded-2xl border bg-white"
+                            title={previewResource?.label}
+                          />
+                        )
+                      })()}
+                      <div className="flex gap-3">
+                        <Button variant="outline" onClick={() => setPreviewResource(null)} className="rounded-2xl">
+                          关闭
+                        </Button>
+                        {previewResource?.download_url && (
+                          <Button asChild className="rounded-2xl">
+                            <Link href={previewResource.download_url} target="_blank">
+                              下载文件
+                            </Link>
                           </Button>
-                        </CardFooter>
-                      </Card>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
 
-                      <Card className="overflow-hidden rounded-3xl border-2 hover:border-primary/50 transition-all duration-300">
-                        <CardHeader className="pb-2">
-                          <div className="flex items-center justify-between">
-                            <Badge className="rounded-xl bg-amber-500">进阶</Badge>
-                            <Award className="h-5 w-5 text-amber-500" />
-                          </div>
-                          <CardTitle className="mt-2">数字插画进阶</CardTitle>
-                          <CardDescription>创作惊艳的数字艺术与插画</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span>12 门课程 • 36 小时</span>
-                              <span>4.9 ★</span>
-                            </div>
-                            <Progress value={0} className="h-2 rounded-xl" />
-                            <p className="text-xs text-muted-foreground">尚未开始</p>
-                          </div>
-                        </CardContent>
-                        <CardFooter>
-                          <Button variant="secondary" className="w-full rounded-2xl">
-                            开始学习
-                          </Button>
-                        </CardFooter>
-                      </Card>
-
-                      <Card className="overflow-hidden rounded-3xl border-2 hover:border-primary/50 transition-all duration-300">
-                        <CardHeader className="pb-2">
-                          <div className="flex items-center justify-between">
-                            <Badge className="rounded-xl bg-red-500">高阶</Badge>
-                            <Award className="h-5 w-5 text-amber-500" />
-                          </div>
-                          <CardTitle className="mt-2">动效与动画</CardTitle>
-                          <CardDescription>制作专业级动效与动画</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span>10 门课程 • 30 小时</span>
-                              <span>4.7 ★</span>
-                            </div>
-                            <Progress value={0} className="h-2 rounded-xl" />
-                            <p className="text-xs text-muted-foreground">尚未开始</p>
-                          </div>
-                        </CardContent>
-                        <CardFooter>
-                          <Button variant="secondary" className="w-full rounded-2xl">
-                            开始学习
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                    </div>
-                  </section>
+                  <Sheet open={!!selectedExperiment} onOpenChange={(open) => !open && setSelectedExperiment(null)}>
+                    <SheetContent side="right" className="w-full max-w-xl overflow-y-auto">
+                      <SheetHeader>
+                        <SheetTitle>{selectedExperiment?.category_display}</SheetTitle>
+                        <SheetDescription>
+                          {selectedExperiment?.files_count ? `共 ${selectedExperiment.files_count} 个资源` : '自动聚合的实验资料'}
+                        </SheetDescription>
+                      </SheetHeader>
+                      <div className="mt-6 space-y-4">
+                        {selectedExperiment?.items?.length ? (
+                          selectedExperiment.items.map((item) => {
+                            const previewHref = item.preview_url || item.media_url
+                            const downloadHref = item.download_url
+                            return (
+                              <Card key={item.id} className="rounded-2xl">
+                                <CardHeader className="pb-2">
+                                  <CardTitle className="text-base">{item.label}</CardTitle>
+                                  <CardDescription>
+                                    {(item.item_label && `${item.item_label} · `) || ''}
+                                    {item.file_type?.toUpperCase()}
+                                  </CardDescription>
+                                </CardHeader>
+                                <CardFooter className="gap-2">
+                                  {previewHref ? (
+                                    <Button size="sm" className="rounded-2xl flex-1" onClick={() => openPreview(item)}>
+                                      预览
+                                    </Button>
+                                  ) : (
+                                    <Button size="sm" className="rounded-2xl flex-1" disabled>
+                                      预览
+                                    </Button>
+                                  )}
+                                  {downloadHref ? (
+                                    <Button
+                                      asChild
+                                      size="sm"
+                                      className="rounded-2xl flex-1 bg-primary text-white hover:bg-primary/90"
+                                    >
+                                      <Link href={downloadHref} target="_blank">
+                                        下载
+                                      </Link>
+                                    </Button>
+                                  ) : (
+                                    <Button size="sm" className="rounded-2xl flex-1" disabled>
+                                      下载
+                                    </Button>
+                                  )}
+                                </CardFooter>
+                              </Card>
+                            )
+                          })
+                        ) : (
+                          <p className="text-sm text-muted-foreground">该实验暂时没有资源。</p>
+                        )}
+                      </div>
+                    </SheetContent>
+                  </Sheet>
                 </TabsContent>
               </motion.div>
             </AnimatePresence>
