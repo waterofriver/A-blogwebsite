@@ -1,2 +1,2 @@
-# A-blogwebsite
-一个简陋博客网站（基于python）
+# An educational platform website
+一个简陋教学平台网站（基于python）
