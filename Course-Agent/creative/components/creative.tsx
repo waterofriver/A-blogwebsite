@@ -1,5 +1,6 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { useCallback, useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -406,7 +407,9 @@ type MaterialsCatalog = {
 }
 
 // 侧边导航简化为四项（保留框架）
-const sidebarItems = [
+type SidebarItem = { title: string; icon: ReactNode; url: string; isActive?: boolean; badge?: ReactNode }
+
+const sidebarItems: SidebarItem[] = [
   { title: "首页", icon: <Home />, url: "#home", isActive: true },
   { title: "社区", icon: <Users />, url: "http://127.0.0.1:8000/" },
   { title: "资源", icon: <Bookmark />, url: "#resources" },
@@ -502,7 +505,8 @@ export function DesignaliCreative() {
   }
 
   useEffect(() => {
-    fetch('/api/community/posts/')
+    const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000'
+    fetch(`${API_BASE}/api/community/posts/`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : Promise.reject(r.statusText)))
       .then((data) => setCommunityPostsState(data.results || initialCommunityPosts))
       .catch(() => {
