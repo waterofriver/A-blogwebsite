@@ -524,6 +524,7 @@ export function DesignaliCreative() {
   const [forumCommenting, setForumCommenting] = useState(false)
   const [forumSearch, setForumSearch] = useState("")
   const [forumQuery, setForumQuery] = useState("")
+  const [forumSort, setForumSort] = useState<'latest' | 'views' | 'likes'>('latest')
 
   const forumPageSize = 10
   const forumPageCount = Math.max(1, Math.ceil((forumTotal || 0) / forumPageSize))
@@ -573,6 +574,21 @@ export function DesignaliCreative() {
     }
   }, [API_BASE])
 
+  const sortPosts = useCallback((list: ForumPost[], sort: 'latest' | 'views' | 'likes') => {
+    const arr = [...list]
+    if (sort === 'views') {
+      return arr.sort((a, b) => (b.views_count || 0) - (a.views_count || 0))
+    }
+    if (sort === 'likes') {
+      return arr.sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0))
+    }
+    return arr.sort((a, b) => {
+      const ta = a.created_at ? new Date(a.created_at).getTime() : 0
+      const tb = b.created_at ? new Date(b.created_at).getTime() : 0
+      return tb - ta
+    })
+  }, [])
+
   const loadForumList = useCallback(
     async (page = forumPage, preferredSelected?: number, query?: string) => {
       const effectiveQuery = (query ?? forumQuery).trim()
@@ -592,11 +608,12 @@ export function DesignaliCreative() {
               return target.includes(effectiveQuery.toLowerCase())
             })
           : results
-        setForumPosts(filtered)
-        setForumTotal(effectiveQuery ? filtered.length : data.total || filtered.length)
+        const sorted = sortPosts(filtered, forumSort)
+        setForumPosts(sorted)
+        setForumTotal(effectiveQuery ? sorted.length : data.total || sorted.length)
         const desired = preferredSelected ?? forumSelectedId
-        const matched = filtered.find((p) => p.id === desired)
-        const nextId = matched?.id ?? filtered[0]?.id ?? null
+        const matched = sorted.find((p) => p.id === desired)
+        const nextId = matched?.id ?? sorted[0]?.id ?? null
         if (nextId) {
           setForumSelectedId(nextId)
           if (nextId !== forumSelectedId || preferredSelected) {
@@ -612,7 +629,7 @@ export function DesignaliCreative() {
         setForumLoadingList(false)
       }
     },
-    [API_BASE, forumPage, forumPageSize, forumSelectedId, forumQuery, loadForumDetail],
+    [API_BASE, forumPage, forumPageSize, forumSelectedId, forumQuery, forumSort, loadForumDetail, sortPosts],
   )
 
   const handleForumSearch = useCallback(
@@ -784,6 +801,10 @@ export function DesignaliCreative() {
   useEffect(() => {
     loadForumList(forumPage, undefined, forumQuery)
   }, [forumPage, forumQuery, loadForumList])
+
+  useEffect(() => {
+    setForumPosts((prev) => sortPosts(prev, forumSort))
+  }, [forumSort, sortPosts])
 
   const experimentBuckets = materialsCatalog?.experiments || []
   const videoList = materialsCatalog?.videos || []
@@ -1442,6 +1463,27 @@ export function DesignaliCreative() {
                         {forumQuery && (
                           <Button variant="ghost" className="rounded-2xl" onClick={() => { setForumSearch(''); handleForumSearch('') }}>清空</Button>
                         )}
+                        <Button
+                          variant={forumSort === 'views' ? 'default' : 'outline'}
+                          className="rounded-2xl"
+                          onClick={() => setForumSort('views')}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />按浏览
+                        </Button>
+                        <Button
+                          variant={forumSort === 'likes' ? 'default' : 'outline'}
+                          className="rounded-2xl"
+                          onClick={() => setForumSort('likes')}
+                        >
+                          <Heart className="mr-2 h-4 w-4" />按点赞
+                        </Button>
+                        <Button
+                          variant={forumSort === 'latest' ? 'default' : 'ghost'}
+                          className="rounded-2xl"
+                          onClick={() => setForumSort('latest')}
+                        >
+                          <ArrowUpDown className="mr-2 h-4 w-4" />最新
+                        </Button>
                       </div>
                     </div>
 
