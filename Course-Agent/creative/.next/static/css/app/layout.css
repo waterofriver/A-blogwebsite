@@ -3929,6 +3929,10 @@ video {
     max-width: 420px;
   }
 
+  .md\:max-w-sm {
+    max-width: 24rem;
+  }
+
   .md\:grid-cols-12 {
     grid-template-columns: repeat(12, minmax(0, 1fr));
   }
@@ -3955,6 +3959,10 @@ video {
 
   .md\:gap-0 {
     gap: 0px;
+  }
+
+  .md\:gap-3 {
+    gap: 0.75rem;
   }
 
   .md\:p-10 {

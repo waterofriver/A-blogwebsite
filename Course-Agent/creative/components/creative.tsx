@@ -507,6 +507,8 @@ export function DesignaliCreative() {
   const [forumCreating, setForumCreating] = useState(false)
   const [forumCommentText, setForumCommentText] = useState("")
   const [forumCommenting, setForumCommenting] = useState(false)
+  const [forumSearch, setForumSearch] = useState("")
+  const [forumQuery, setForumQuery] = useState("")
 
   const forumPageSize = 10
   const forumPageCount = Math.max(1, Math.ceil((forumTotal || 0) / forumPageSize))
@@ -557,19 +559,29 @@ export function DesignaliCreative() {
   }, [API_BASE])
 
   const loadForumList = useCallback(
-    async (page = forumPage, preferredSelected?: number) => {
+    async (page = forumPage, preferredSelected?: number, query?: string) => {
+      const effectiveQuery = (query ?? forumQuery).trim()
       setForumLoadingList(true)
       setForumError(null)
       try {
-        const res = await fetch(`${API_BASE}/api/blogs/?page=${page}&page_size=${forumPageSize}`, { credentials: 'include' })
+        const res = await fetch(
+          `${API_BASE}/api/blogs/?page=${page}&page_size=${forumPageSize}${effectiveQuery ? `&q=${encodeURIComponent(effectiveQuery)}` : ''}`,
+          { credentials: 'include' },
+        )
         if (!res.ok) throw new Error('failed')
         const data = await res.json()
         const results: ForumPost[] = data.results || []
-        setForumPosts(results)
-        setForumTotal(data.total || 0)
+        const filtered = effectiveQuery
+          ? results.filter((p) => {
+              const target = `${p.title || ''} ${p.content || ''} ${p.author || ''}`.toLowerCase()
+              return target.includes(effectiveQuery.toLowerCase())
+            })
+          : results
+        setForumPosts(filtered)
+        setForumTotal(effectiveQuery ? filtered.length : data.total || filtered.length)
         const desired = preferredSelected ?? forumSelectedId
-        const matched = results.find((p) => p.id === desired)
-        const nextId = matched?.id ?? results[0]?.id ?? null
+        const matched = filtered.find((p) => p.id === desired)
+        const nextId = matched?.id ?? filtered[0]?.id ?? null
         if (nextId) {
           setForumSelectedId(nextId)
           if (nextId !== forumSelectedId || preferredSelected) {
@@ -585,7 +597,16 @@ export function DesignaliCreative() {
         setForumLoadingList(false)
       }
     },
-    [API_BASE, forumPage, forumPageSize, forumSelectedId, loadForumDetail],
+    [API_BASE, forumPage, forumPageSize, forumSelectedId, forumQuery, loadForumDetail],
+  )
+
+  const handleForumSearch = useCallback(
+    (override?: string) => {
+      const q = (override ?? forumSearch).trim()
+      setForumQuery(q)
+      setForumPage(1)
+    },
+    [forumSearch],
   )
 
   const handleCreatePost = useCallback(async () => {
@@ -707,8 +728,8 @@ export function DesignaliCreative() {
   }, [])
 
   useEffect(() => {
-    loadForumList(forumPage)
-  }, [forumPage, loadForumList])
+    loadForumList(forumPage, undefined, forumQuery)
+  }, [forumPage, forumQuery, loadForumList])
 
   const toggleExpanded = (title: string) => {
     setExpandedItems((prev) => ({
@@ -1310,6 +1331,28 @@ export function DesignaliCreative() {
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Badge variant="outline" className="rounded-xl">共 {forumTotal || forumPosts.length} 条</Badge>
                         {me?.is_admin && <Badge variant="outline" className="rounded-xl">管理员</Badge>}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+                      <div className="relative w-full md:max-w-sm">
+                        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="search"
+                          placeholder="搜索帖子标题、作者或内容"
+                          className="w-full rounded-2xl pl-9"
+                          value={forumSearch}
+                          onChange={(e) => setForumSearch(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleForumSearch()
+                          }}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" className="rounded-2xl" onClick={() => handleForumSearch()}>搜索</Button>
+                        {forumQuery && (
+                          <Button variant="ghost" className="rounded-2xl" onClick={() => { setForumSearch(''); handleForumSearch('') }}>清空</Button>
+                        )}
                       </div>
                     </div>
 
