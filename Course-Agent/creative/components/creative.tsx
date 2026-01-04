@@ -410,11 +410,26 @@ type MaterialsCatalog = {
 }
 
 // 侧边导航简化为四项（保留框架）
-type SidebarItem = { title: string; icon: ReactNode; url: string; isActive?: boolean; badge?: ReactNode }
+type SidebarItem = {
+  title: string
+  icon: ReactNode
+  url: string
+  isActive?: boolean
+  badge?: ReactNode
+  children?: SidebarItem[]
+}
 
 const sidebarItems: SidebarItem[] = [
-  { title: "首页", icon: <Home />, url: "#home", isActive: true },
-  { title: "社区", icon: <Users />, url: "http://127.0.0.1:8000/" },
+  { title: "首页", icon: <Home />, url: "#home" },
+  {
+    title: "社区",
+    icon: <Users />,
+    url: "#apps",
+    children: [
+      { title: "灵动版", icon: <Sparkles className="h-4 w-4" />, url: "#apps" },
+      { title: "经典版", icon: <LayoutGrid className="h-4 w-4" />, url: "http://127.0.0.1:8000/" },
+    ],
+  },
   { title: "资源", icon: <Bookmark />, url: "#resources" },
   { title: "学习", icon: <BookOpen />, url: "#learn" },
 ]
@@ -681,6 +696,45 @@ export function DesignaliCreative() {
     }
   }
 
+  const isSidebarActive = useCallback(
+    (item: SidebarItem): boolean => {
+      if (item.children?.length) {
+        return item.children.some((child) => isSidebarActive(child))
+      }
+      if (item.url?.startsWith('#')) {
+        const key = item.url.replace('#', '') || 'home'
+        return activeTab === key
+      }
+      return false
+    },
+    [activeTab],
+  )
+
+  const handleSidebarNavigation = useCallback(
+    (item: SidebarItem) => {
+      if (item.children?.length) {
+        setExpandedItems((prev) => ({ ...prev, [item.title]: !prev[item.title] }))
+        return
+      }
+
+      if (item.url?.startsWith('http')) {
+        window.location.href = item.url
+        return
+      }
+
+      if (item.url?.startsWith('#')) {
+        const key = item.url.replace('#', '') || 'home'
+        setActiveTab(key)
+        const targetId = item.url === '#community' ? 'community-section' : undefined
+        if (targetId) {
+          const el = document.getElementById(targetId)
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }
+    },
+    [setActiveTab],
+  )
+
   useEffect(() => {
     fetchMe()
   }, [fetchMe])
@@ -730,13 +784,6 @@ export function DesignaliCreative() {
   useEffect(() => {
     loadForumList(forumPage, undefined, forumQuery)
   }, [forumPage, forumQuery, loadForumList])
-
-  const toggleExpanded = (title: string) => {
-    setExpandedItems((prev) => ({
-      ...prev,
-      [title]: !prev[title],
-    }))
-  }
 
   const experimentBuckets = materialsCatalog?.experiments || []
   const videoList = materialsCatalog?.videos || []
@@ -850,40 +897,61 @@ export function DesignaliCreative() {
 
           <ScrollArea className="flex-1 px-3 py-2">
             <div className="space-y-1">
-              {sidebarItems.map((item) => (
-                <div key={item.title} className="mb-1">
-                  <button
-                    className={cn(
-                      "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm font-medium",
-                      item.isActive ? "bg-primary/10 text-primary" : "hover:bg-muted",
+              {sidebarItems.map((item) => {
+                const active = isSidebarActive(item)
+                const expanded = expandedItems[item.title]
+                return (
+                  <div key={item.title} className="mb-1">
+                    <button
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm font-medium",
+                        active ? "bg-primary/10 text-primary shadow-sm" : "hover:bg-muted",
+                      )}
+                      onClick={() => handleSidebarNavigation(item)}
+                    >
+                      <div className="flex items-center gap-3">
+                        {item.icon}
+                        <span>{item.title}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {item.badge && (
+                          <Badge variant="outline" className="ml-auto rounded-full px-2 py-0.5 text-xs">
+                            {item.badge}
+                          </Badge>
+                        )}
+                        {item.children?.length ? (
+                          <ChevronDown
+                            className={cn("h-4 w-4 transition-transform", expanded ? "rotate-180 text-primary" : "text-muted-foreground")}
+                          />
+                        ) : null}
+                      </div>
+                    </button>
+
+                    {item.children?.length && expanded && (
+                      <div className="mt-1 space-y-1 pl-10">
+                        {item.children.map((child) => {
+                          const childActive = isSidebarActive(child)
+                          return (
+                            <button
+                              key={child.title}
+                              className={cn(
+                                "flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-sm",
+                                childActive ? "bg-primary/10 text-primary" : "hover:bg-muted",
+                              )}
+                              onClick={() => handleSidebarNavigation(child)}
+                            >
+                              <div className="flex items-center gap-2">
+                                {child.icon}
+                                <span>{child.title}</span>
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
                     )}
-                    onClick={() => {
-                      if (item.url && item.url.startsWith("http")) {
-                        window.location.href = item.url
-                        return
-                      }
-                      if (item.url && item.url.startsWith("#")) {
-                        setActiveTab(item.url.replace("#", "") || "home")
-                        const targetId = item.url === "#community" ? "community-section" : undefined
-                        if (targetId) {
-                          const el = document.getElementById(targetId)
-                          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
-                        }
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      {item.icon}
-                      <span>{item.title}</span>
-                    </div>
-                    {item.badge && (
-                      <Badge variant="outline" className="ml-auto rounded-full px-2 py-0.5 text-xs">
-                        {item.badge}
-                      </Badge>
-                    )}
-                  </button>
-                </div>
-              ))}
+                  </div>
+                )
+              })}
             </div>
           </ScrollArea>
 
@@ -927,40 +995,61 @@ export function DesignaliCreative() {
 
           <ScrollArea className="flex-1 px-3 py-2">
             <div className="space-y-1">
-              {sidebarItems.map((item) => (
-                <div key={item.title} className="mb-1">
-                  <button
-                    className={cn(
-                      "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm font-medium",
-                      item.isActive ? "bg-primary/10 text-primary" : "hover:bg-muted",
+              {sidebarItems.map((item) => {
+                const active = isSidebarActive(item)
+                const expanded = expandedItems[item.title]
+                return (
+                  <div key={item.title} className="mb-1">
+                    <button
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm font-medium",
+                        active ? "bg-primary/10 text-primary shadow-sm" : "hover:bg-muted",
+                      )}
+                      onClick={() => handleSidebarNavigation(item)}
+                    >
+                      <div className="flex items-center gap-3">
+                        {item.icon}
+                        <span>{item.title}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {item.badge && (
+                          <Badge variant="outline" className="ml-auto rounded-full px-2 py-0.5 text-xs">
+                            {item.badge}
+                          </Badge>
+                        )}
+                        {item.children?.length ? (
+                          <ChevronDown
+                            className={cn("h-4 w-4 transition-transform", expanded ? "rotate-180 text-primary" : "text-muted-foreground")}
+                          />
+                        ) : null}
+                      </div>
+                    </button>
+
+                    {item.children?.length && expanded && (
+                      <div className="mt-1 space-y-1 pl-10">
+                        {item.children.map((child) => {
+                          const childActive = isSidebarActive(child)
+                          return (
+                            <button
+                              key={child.title}
+                              className={cn(
+                                "flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-sm",
+                                childActive ? "bg-primary/10 text-primary" : "hover:bg-muted",
+                              )}
+                              onClick={() => handleSidebarNavigation(child)}
+                            >
+                              <div className="flex items-center gap-2">
+                                {child.icon}
+                                <span>{child.title}</span>
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
                     )}
-                    onClick={() => {
-                      if (item.url && item.url.startsWith("http")) {
-                        window.location.href = item.url
-                        return
-                      }
-                      if (item.url && item.url.startsWith("#")) {
-                        setActiveTab(item.url.replace("#", "") || "home")
-                        const targetId = item.url === "#community" ? "community-section" : undefined
-                        if (targetId) {
-                          const el = document.getElementById(targetId)
-                          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
-                        }
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      {item.icon}
-                      <span>{item.title}</span>
-                    </div>
-                    {item.badge && (
-                      <Badge variant="outline" className="ml-auto rounded-full px-2 py-0.5 text-xs">
-                        {item.badge}
-                      </Badge>
-                    )}
-                  </button>
-                </div>
-              ))}
+                  </div>
+                )
+              })}
             </div>
           </ScrollArea>
 
