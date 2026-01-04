@@ -20,7 +20,7 @@ SECRET_KEY = 'django-insecure-+o!71^8u6t74inr9ga94!%17^z$)958-9$-&@vtuc@bq(#66*5
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.81.1"]
 
 
 # Application definition
@@ -177,8 +177,15 @@ MEDIA_ROOT = BASE_DIR / 'uploads'
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'http://192.168.81.1:3000',
 ]
 CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://192.168.81.1:3000',
+]
 
 # --- Frame Options (From your config) ---
 # Only enable this if you specifically need iframe embedding. 
@@ -195,8 +202,8 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 
 # Cookie Settings for Dev
-SESSION_COOKIE_SAMESITE = None
-CSRF_COOKIE_SAMESITE = None
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 
