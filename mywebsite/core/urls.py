@@ -24,6 +24,12 @@ urlpatterns = [
     path('api/users/me/', views.user_me_api, name='api_users_me'),
     path('api/users/<int:pk>/', views.user_detail_api, name='api_users_detail'),
     path('api/users/me/update/', views.user_update_api, name='api_users_update'),
+    # blog/forum APIs
+    path('api/blogs/', views.api_blogs, name='api_blogs'),
+    path('api/blogs/<int:blog_id>/', views.api_blog_detail, name='api_blog_detail'),
+    path('api/blogs/<int:blog_id>/comments/', views.api_blog_comments, name='api_blog_comments'),
+    path('api/blogs/<int:blog_id>/view/', views.api_blog_view, name='api_blog_view'),
+    path('api/blogs/<int:blog_id>/like/', views.like_blog, name='api_blog_like'),
     # auth API for front-end
     path('api/auth/login/', views.api_login, name='api_auth_login'),
     path('api/auth/logout/', views.api_logout, name='api_auth_logout'),

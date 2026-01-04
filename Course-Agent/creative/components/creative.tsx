@@ -27,10 +27,13 @@ import {
   PanelLeft,
   Play,
   Plus,
+  RefreshCw,
   Search,
   Settings,
   Share2,
   Sparkles,
+  Loader2,
+  Send,
   Star,
   Trash,
   Users,
@@ -416,6 +419,34 @@ const sidebarItems: SidebarItem[] = [
   { title: "学习", icon: <BookOpen />, url: "#learn" },
 ]
 
+// 论坛类型
+interface ForumPost {
+  id: number
+  title: string
+  content?: string
+  author?: string
+  author_id?: number
+  likes_count?: number
+  views_count?: number
+  is_pinned?: boolean
+  is_featured?: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+interface ForumComment {
+  id: number
+  content: string
+  created_at?: string
+  author?: string
+  author_id?: number
+}
+
+interface ForumDetail extends ForumPost {
+  comments: ForumComment[]
+  liked?: boolean
+}
+
 
 export function DesignaliCreative() {
   const [progress, setProgress] = useState(0)
@@ -461,25 +492,177 @@ export function DesignaliCreative() {
   const [bioInput, setBioInput] = useState('')
   const [savingNickname, setSavingNickname] = useState(false)
 
-  // fetch current user nickname for sidebar display
-  useEffect(() => {
-    const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000'
-    fetch(`${API_BASE}/api/users/me/`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d) {
-          if (d.nickname) {
-            setCurrentNickname(d.nickname)
-          } else {
-            // logged in but no nickname -> show modal to force set
-            setNicknameInput('')
-            setBioInput(d.bio || '')
-            setShowNicknameModal(true)
+  // Forum states
+  const [me, setMe] = useState<any | null>(null)
+  const [forumPosts, setForumPosts] = useState<ForumPost[]>([])
+  const [forumPage, setForumPage] = useState(1)
+  const [forumTotal, setForumTotal] = useState(0)
+  const [forumLoadingList, setForumLoadingList] = useState(false)
+  const [forumSelectedId, setForumSelectedId] = useState<number | null>(null)
+  const [forumSelected, setForumSelected] = useState<ForumDetail | null>(null)
+  const [forumLoadingDetail, setForumLoadingDetail] = useState(false)
+  const [forumError, setForumError] = useState<string | null>(null)
+  const [forumCreateOpen, setForumCreateOpen] = useState(false)
+  const [forumCreateForm, setForumCreateForm] = useState({ title: "", content: "" })
+  const [forumCreating, setForumCreating] = useState(false)
+  const [forumCommentText, setForumCommentText] = useState("")
+  const [forumCommenting, setForumCommenting] = useState(false)
+
+  const forumPageSize = 10
+  const forumPageCount = Math.max(1, Math.ceil((forumTotal || 0) / forumPageSize))
+  const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000'
+
+  const fetchMe = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/users/me/`, { credentials: 'include' })
+      if (!res.ok) return
+      const d = await res.json()
+      setMe(d)
+      if (d.nickname) {
+        setCurrentNickname(d.nickname)
+      } else {
+        setNicknameInput('')
+        setBioInput(d.bio || '')
+        setShowNicknameModal(true)
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [API_BASE])
+
+  const loadForumDetail = useCallback(async (postId: number) => {
+    setForumSelectedId(postId)
+    setForumLoadingDetail(true)
+    setForumError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/blogs/${postId}/`, { credentials: 'include' })
+      if (!res.ok) throw new Error('failed')
+      const data: ForumDetail = await res.json()
+      setForumSelected(data)
+      setForumCommentText('')
+      fetch(`${API_BASE}/api/blogs/${postId}/view/`, { method: 'POST', credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((viewData) => {
+          if (viewData?.views_count !== undefined) {
+            setForumSelected((prev) => (prev && prev.id === postId ? { ...prev, views_count: viewData.views_count } : prev))
+            setForumPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, views_count: viewData.views_count } : p)))
           }
+        })
+        .catch(() => {})
+    } catch (err) {
+      setForumError('加载帖子详情失败')
+    } finally {
+      setForumLoadingDetail(false)
+    }
+  }, [API_BASE])
+
+  const loadForumList = useCallback(
+    async (page = forumPage, preferredSelected?: number) => {
+      setForumLoadingList(true)
+      setForumError(null)
+      try {
+        const res = await fetch(`${API_BASE}/api/blogs/?page=${page}&page_size=${forumPageSize}`, { credentials: 'include' })
+        if (!res.ok) throw new Error('failed')
+        const data = await res.json()
+        const results: ForumPost[] = data.results || []
+        setForumPosts(results)
+        setForumTotal(data.total || 0)
+        const desired = preferredSelected ?? forumSelectedId
+        const matched = results.find((p) => p.id === desired)
+        const nextId = matched?.id ?? results[0]?.id ?? null
+        if (nextId) {
+          setForumSelectedId(nextId)
+          if (nextId !== forumSelectedId || preferredSelected) {
+            loadForumDetail(nextId)
+          }
+        } else {
+          setForumSelected(null)
+          setForumSelectedId(null)
         }
+      } catch (err) {
+        setForumError('社区数据加载失败')
+      } finally {
+        setForumLoadingList(false)
+      }
+    },
+    [API_BASE, forumPage, forumPageSize, forumSelectedId, loadForumDetail],
+  )
+
+  const handleCreatePost = useCallback(async () => {
+    if (!forumCreateForm.title.trim() || !forumCreateForm.content.trim()) {
+      setForumError('请填写标题和内容')
+      return
+    }
+    setForumCreating(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/blogs/`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(forumCreateForm),
       })
-      .catch(() => {})
-  }, [])
+      if (!res.ok) throw new Error('create failed')
+      const created = await res.json()
+      setForumCreateOpen(false)
+      setForumCreateForm({ title: '', content: '' })
+      setForumPage(1)
+      setForumSelectedId(created.id)
+      await loadForumList(1, created.id)
+    } catch (err) {
+      setForumError('创建帖子失败，可能需要登录')
+    } finally {
+      setForumCreating(false)
+    }
+  }, [API_BASE, forumCreateForm, loadForumList])
+
+  const handleSubmitComment = useCallback(async () => {
+    if (!forumSelectedId || !forumCommentText.trim()) return
+    setForumCommenting(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/blogs/${forumSelectedId}/comments/`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: forumCommentText }),
+      })
+      if (!res.ok) throw new Error('comment failed')
+      const c = await res.json()
+      setForumSelected((prev) => (prev && prev.id === forumSelectedId ? { ...prev, comments: [c, ...(prev.comments || [])] } : prev))
+      setForumCommentText('')
+    } catch (err) {
+      setForumError('发表评论失败，可能需要登录')
+    } finally {
+      setForumCommenting(false)
+    }
+  }, [API_BASE, forumCommentText, forumSelectedId])
+
+  const handleToggleLike = useCallback(async () => {
+    if (!forumSelectedId) return
+    try {
+      const res = await fetch(`${API_BASE}/api/blogs/${forumSelectedId}/like/`, { method: 'POST', credentials: 'include' })
+      if (!res.ok) throw new Error('like failed')
+      const data = await res.json()
+      setForumSelected((prev) => (prev && prev.id === forumSelectedId ? { ...prev, liked: data.liked, likes_count: data.likes_count } : prev))
+      setForumPosts((prev) => prev.map((p) => (p.id === forumSelectedId ? { ...p, likes_count: data.likes_count } : p)))
+    } catch (err) {
+      setForumError('点赞失败，可能需要登录')
+    }
+  }, [API_BASE, forumSelectedId])
+
+  const handleRefreshList = useCallback(() => loadForumList(forumPage, forumSelectedId || undefined), [forumPage, forumSelectedId, loadForumList])
+
+  const formatDate = (value?: string) => {
+    if (!value) return ''
+    try {
+      return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+    } catch (e) {
+      return value
+    }
+  }
+
+  useEffect(() => {
+    fetchMe()
+  }, [fetchMe])
 
   const saveNickname = async () => {
     if (!nicknameInput || savingNickname) return
@@ -505,14 +688,13 @@ export function DesignaliCreative() {
   }
 
   useEffect(() => {
-    const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000'
     fetch(`${API_BASE}/api/community/posts/`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : Promise.reject(r.statusText)))
       .then((data) => setCommunityPostsState(data.results || initialCommunityPosts))
       .catch(() => {
         // keep initial fallback data on error
       })
-  }, [])
+  }, [API_BASE])
 
   useEffect(() => {
     loadCatalog()
@@ -523,6 +705,10 @@ export function DesignaliCreative() {
     const timer = setTimeout(() => setProgress(100), 1000)
     return () => clearTimeout(timer)
   }, [])
+
+  useEffect(() => {
+    loadForumList(forumPage)
+  }, [forumPage, loadForumList])
 
   const toggleExpanded = (title: string) => {
     setExpandedItems((prev) => ({
@@ -1096,117 +1282,239 @@ export function DesignaliCreative() {
                     >
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div className="space-y-2">
-                          <h2 className="text-3xl font-bold">创意应用合集</h2>
+                          <h2 className="text-3xl font-bold">社区论坛</h2>
                           <p className="max-w-[600px] text-white/80">
-                            探索全套专业设计与创意应用。
+                            浏览、讨论、点赞并发布帖子。数据来自后端 /api/blogs/ 系列接口（携带 session）。
                           </p>
                         </div>
-                        <Button className="w-fit rounded-2xl bg-white text-red-700 hover:bg-white/90">
-                          <Download className="mr-2 h-4 w-4" />
-                          安装桌面端
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" className="rounded-2xl bg-white/15 text-white hover:bg-white/25" onClick={handleRefreshList} disabled={forumLoadingList}>
+                            {forumLoadingList ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                            刷新列表
+                          </Button>
+                          <Button className="rounded-2xl bg-white text-red-700 hover:bg-white/90" onClick={() => setForumCreateOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            发布帖子
+                          </Button>
+                        </div>
                       </div>
                     </motion.div>
                   </section>
 
-                  <div className="flex flex-wrap gap-3 mb-6">
-                    <Button variant="outline" className="rounded-2xl">
-                      全部分类
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl">
-                      创意
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl">
-                      视频
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl">
-                      网页
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl">
-                      3D
-                    </Button>
-                    <div className="flex-1"></div>
-                    <div className="relative w-full md:w-auto mt-3 md:mt-0">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="search"
-                        placeholder="搜索应用..."
-                        className="w-full rounded-2xl pl-9 md:w-[200px]"
-                      />
-                    </div>
-                  </div>
-
                   <section className="space-y-4">
-                    <h2 className="text-2xl font-semibold">最新发布</h2>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                      {apps
-                        .filter((app) => app.new)
-                        .map((app) => (
-                          <motion.div key={app.name} whileHover={{ scale: 1.02, y: -5 }} whileTap={{ scale: 0.98 }}>
-                            <Card className="overflow-hidden rounded-3xl border-2 hover:border-primary/50 transition-all duration-300">
-                              <CardHeader className="pb-2">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-                                    {app.icon}
-                                  </div>
-                                  <Badge className="rounded-xl bg-amber-500">新品</Badge>
-                                </div>
-                              </CardHeader>
-                              <CardContent className="pb-2">
-                                <CardTitle className="text-lg">{app.name}</CardTitle>
-                                <CardDescription>{app.description}</CardDescription>
-                                <div className="mt-2">
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span>安装进度</span>
-                                    <span>{app.progress}%</span>
-                                  </div>
-                                  <Progress value={app.progress} className="h-2 mt-1 rounded-xl" />
-                                </div>
-                              </CardContent>
-                              <CardFooter>
-                                <Button variant="secondary" className="w-full rounded-2xl">
-                                  {app.progress < 100 ? "继续安装" : "打开"}
-                                </Button>
-                              </CardFooter>
-                            </Card>
-                          </motion.div>
-                        ))}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-2xl font-semibold">论坛动态</h2>
+                        <p className="text-sm text-muted-foreground">{currentNickname ? `欢迎，${currentNickname}` : '登录后可发帖与互动'}</p>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Badge variant="outline" className="rounded-xl">共 {forumTotal || forumPosts.length} 条</Badge>
+                        {me?.is_admin && <Badge variant="outline" className="rounded-xl">管理员</Badge>}
+                      </div>
                     </div>
-                  </section>
 
-                  <section className="space-y-4">
-                    <h2 className="text-2xl font-semibold">全部应用</h2>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                      {apps.map((app) => (
-                        <motion.div key={app.name} whileHover={{ scale: 1.02, y: -5 }} whileTap={{ scale: 0.98 }}>
-                          <Card className="overflow-hidden rounded-3xl border hover:border-primary/50 transition-all duration-300">
-                            <CardHeader className="pb-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-                                  {app.icon}
+                    {forumError && (
+                      <Card className="rounded-3xl border-red-200 bg-red-50/60 text-red-700">
+                        <CardContent className="flex items-center justify-between gap-3 p-4">
+                          <span>{forumError}</span>
+                          <Button variant="outline" size="sm" className="rounded-2xl" onClick={handleRefreshList}>重试</Button>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                      <Card className="lg:col-span-2 rounded-3xl">
+                        <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Eye className="h-4 w-4" />
+                            <span>公开帖子</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" className="rounded-2xl" onClick={() => setForumPage((p) => Math.max(1, p - 1))} disabled={forumPage <= 1 || forumLoadingList}>
+                              上一页
+                            </Button>
+                            <span className="text-sm text-muted-foreground">第 {forumPage} / {forumPageCount} 页</span>
+                            <Button variant="outline" size="sm" className="rounded-2xl" onClick={() => setForumPage((p) => Math.min(forumPageCount, p + 1))} disabled={forumPage >= forumPageCount || forumLoadingList}>
+                              下一页
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          {forumLoadingList && (
+                            <div className="flex items-center gap-2 rounded-2xl border bg-muted/40 p-3 text-sm text-muted-foreground">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              列表加载中...
+                            </div>
+                          )}
+                          {!forumLoadingList && forumPosts.length === 0 && (
+                            <div className="rounded-2xl border border-dashed p-6 text-center text-muted-foreground">
+                              暂无帖子，点击右上角发布你的第一篇。
+                            </div>
+                          )}
+                          {forumPosts.map((post) => {
+                            const isActive = forumSelectedId === post.id
+                            return (
+                              <button
+                                key={post.id}
+                                onClick={() => loadForumDetail(post.id)}
+                                className={cn(
+                                  'w-full rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm',
+                                  isActive ? 'border-primary/60 bg-primary/5' : 'border-muted'
+                                )}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="font-semibold text-base">{post.title}</span>
+                                      {post.is_pinned && <Badge className="rounded-xl">置顶</Badge>}
+                                      {post.is_featured && <Badge variant="secondary" className="rounded-xl">加精</Badge>}
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">
+                                      {(post.author || '匿名用户')}{post.created_at ? ` · ${formatDate(post.created_at)}` : ''}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                    <span className="flex items-center gap-1"><Eye className="h-4 w-4" />{post.views_count || 0}</span>
+                                    <span className="flex items-center gap-1"><Heart className="h-4 w-4 text-red-500" />{post.likes_count || 0}</span>
+                                  </div>
                                 </div>
-                                <Badge variant="outline" className="rounded-xl">
-                                  {app.category}
-                                </Badge>
+                              </button>
+                            )
+                          })}
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-3xl">
+                        <CardHeader>
+                          <CardTitle>帖子详情</CardTitle>
+                          <CardDescription>{forumSelected ? '查看并互动' : '点击左侧列表中的帖子以查看详情'}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {forumLoadingDetail && (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              详情加载中...
+                            </div>
+                          )}
+
+                          {!forumLoadingDetail && !forumSelected && (
+                            <div className="rounded-2xl border border-dashed p-6 text-center text-muted-foreground">
+                              请选择一个帖子查看内容。
+                            </div>
+                          )}
+
+                          {forumSelected && (
+                            <div className="space-y-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <h3 className="text-xl font-semibold leading-snug">{forumSelected.title}</h3>
+                                  <p className="text-sm text-muted-foreground">
+                                    {(forumSelected.author || '匿名用户')} · {formatDate(forumSelected.created_at)}
+                                  </p>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  {forumSelected.is_pinned && <Badge className="rounded-xl">置顶</Badge>}
+                                  {forumSelected.is_featured && <Badge variant="secondary" className="rounded-xl">加精</Badge>}
+                                </div>
                               </div>
-                              </CardHeader>
-                              <CardContent className="pb-2">
-                                <CardTitle className="text-lg">{app.name}</CardTitle>
-                                <CardDescription>{app.description}</CardDescription>
-                              </CardContent>
-                              <CardFooter className="flex gap-2">
-                                <Button variant="secondary" className="flex-1 rounded-2xl">
-                                  {app.progress < 100 ? "安装" : "打开"}
+
+                              <div className="rounded-2xl bg-muted/50 p-3 text-sm leading-relaxed whitespace-pre-wrap">
+                                {forumSelected.content || '暂无内容'}
+                              </div>
+
+                              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                <Badge variant="outline" className="rounded-xl">浏览 {forumSelected.views_count || 0}</Badge>
+                                <Badge variant="outline" className="rounded-xl">点赞 {forumSelected.likes_count || 0}</Badge>
+                                <Badge variant="outline" className="rounded-xl">评论 {(forumSelected.comments || []).length}</Badge>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  variant={forumSelected?.liked ? 'default' : 'outline'}
+                                  className="rounded-2xl"
+                                  onClick={handleToggleLike}
+                                  disabled={forumLoadingDetail}
+                                >
+                                  <Heart className={cn('mr-2 h-4 w-4', forumSelected?.liked ? 'fill-current text-red-500' : '')} />
+                                  {forumSelected?.liked ? '已点赞' : '点赞'}
                                 </Button>
-                                <Button variant="outline" size="icon" className="rounded-2xl">
-                                  <Star className="h-4 w-4" />
+                                <Button variant="outline" className="rounded-2xl" onClick={() => loadForumDetail(forumSelected.id)} disabled={forumLoadingDetail}>
+                                  <RefreshCw className="mr-2 h-4 w-4" />
+                                  刷新
                                 </Button>
-                              </CardFooter>
-                            </Card>
-                        </motion.div>
-                      ))}
+                                {(me?.is_admin || me?.is_root_admin) && (
+                                  <Button variant="ghost" className="rounded-2xl" onClick={() => (window.location.href = '/admin/dashboard/')}>后台管理</Button>
+                                )}
+                              </div>
+
+                              <div className="space-y-3">
+                                <div className="flex items-start gap-2">
+                                  <textarea
+                                    className="flex-1 rounded-2xl border px-3 py-2 text-sm"
+                                    rows={3}
+                                    placeholder="写下你的评论..."
+                                    value={forumCommentText}
+                                    onChange={(e) => setForumCommentText(e.target.value)}
+                                  />
+                                  <Button className="rounded-2xl" onClick={handleSubmitComment} disabled={forumCommenting || forumLoadingDetail}>
+                                    {forumCommenting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                    发表评论
+                                  </Button>
+                                </div>
+                                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                                  {forumSelected.comments && forumSelected.comments.length > 0 ? (
+                                    forumSelected.comments.map((c) => (
+                                      <div key={c.id} className="rounded-2xl border p-3">
+                                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                          <span>{c.author || '用户'}</span>
+                                          <span>{formatDate(c.created_at)}</span>
+                                        </div>
+                                        <p className="mt-1 text-sm text-foreground whitespace-pre-wrap">{c.content}</p>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <p className="text-sm text-muted-foreground">暂无评论</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     </div>
                   </section>
+
+                  <Dialog open={forumCreateOpen} onOpenChange={setForumCreateOpen}>
+                    <DialogContent className="max-w-lg">
+                      <DialogHeader>
+                        <DialogTitle>发布帖子</DialogTitle>
+                        <DialogDescription>提交后将创建新的论坛帖子（需要已登录）。</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm text-muted-foreground">标题</label>
+                          <Input className="mt-1" value={forumCreateForm.title} onChange={(e) => setForumCreateForm((s) => ({ ...s, title: e.target.value }))} placeholder="请输入标题" />
+                        </div>
+                        <div>
+                          <label className="text-sm text-muted-foreground">内容</label>
+                          <textarea
+                            className="mt-1 w-full rounded-2xl border px-3 py-2 text-sm"
+                            rows={6}
+                            value={forumCreateForm.content}
+                            onChange={(e) => setForumCreateForm((s) => ({ ...s, content: e.target.value }))}
+                            placeholder="输入正文，支持换行"
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setForumCreateOpen(false)} className="rounded-2xl">取消</Button>
+                        <Button onClick={handleCreatePost} disabled={forumCreating} className="rounded-2xl">
+                          {forumCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                          发布
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </TabsContent>
 
                 <TabsContent value="files" className="space-y-8 mt-0">
