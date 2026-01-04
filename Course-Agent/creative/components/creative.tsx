@@ -1137,8 +1137,11 @@ export function DesignaliCreative() {
               </TooltipProvider>
 
               <Avatar className="h-9 w-9 border-2 border-primary">
-                <AvatarImage src="/placeholder.svg?height=40&width=40" alt="User" />
-                <AvatarFallback>ZW</AvatarFallback>
+                {me?.avatar ? (
+                  <AvatarImage src={me.avatar} alt={me.nickname || me.username || '用户'} />
+                ) : (
+                  <AvatarFallback>{(me?.nickname || me?.username || 'U').charAt(0)}</AvatarFallback>
+                )}
               </Avatar>
             </div>
           </div>

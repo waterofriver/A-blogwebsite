@@ -168,9 +168,9 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [ BASE_DIR / 'static' ]
 
 # Media (uploads)
-# 注意：队友使用的是 uploads 目录，你的文件应该存放在这里
+# 实际目录名为 upload（项目根下的 upload/avatars/...）
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'uploads'
+MEDIA_ROOT = BASE_DIR / 'upload'
 
 # CORS Settings
 # Merged logic: Keep teammate's whitelist but ensure localhost:3000 is there
