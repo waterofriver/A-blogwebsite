@@ -111,13 +111,6 @@ def api_register(request):
         user.nickname = nickname
         user.has_set_nickname = True
     user.save()
-    # ensure profile exists
-    try:
-        if getattr(user, 'profile', None) is None:
-            from .models import Profile
-            Profile.objects.get_or_create(user=user, defaults={'nickname': nickname or ''})
-    except Exception:
-        pass
 
     # auto-login
     auth_login(request, user)
@@ -439,20 +432,17 @@ def community_posts_api(request):
 def users_list_api(request):
     from django.contrib.auth import get_user_model
     UserModel = get_user_model()
-    qs = UserModel.objects.all().select_related('profile')
+    qs = UserModel.objects.all()
     data = []
     for u in qs:
         avatar = None
-        try:
-            if getattr(u, 'profile', None) and u.profile.avatar:
-                avatar = request.build_absolute_uri(u.profile.avatar.url)
-        except Exception:
-            avatar = None
+        if getattr(u, 'avatar_path', None):
+            avatar = request.build_absolute_uri(settings.MEDIA_URL + u.avatar_path)
         data.append({
             'id': u.id,
             'username': u.username,
             'email': u.email,
-            'nickname': getattr(u, 'nickname', None) or (getattr(u, 'profile', None) and getattr(u.profile, 'nickname', None)),
+            'nickname': getattr(u, 'nickname', None),
             'avatar': avatar,
         })
     return JsonResponse({'results': data})
@@ -462,19 +452,16 @@ def users_list_api(request):
 def user_detail_api(request, pk: int):
     from django.contrib.auth import get_user_model
     UserModel = get_user_model()
-    u = get_object_or_404(UserModel.objects.select_related('profile'), pk=pk)
+    u = get_object_or_404(UserModel.objects.all(), pk=pk)
     avatar = None
-    try:
-        if getattr(u, 'profile', None) and u.profile.avatar:
-            avatar = request.build_absolute_uri(u.profile.avatar.url)
-    except Exception:
-        avatar = None
+    if getattr(u, 'avatar_path', None):
+        avatar = request.build_absolute_uri(settings.MEDIA_URL + u.avatar_path)
     return JsonResponse({
         'id': u.id,
         'username': u.username,
         'email': u.email,
-        'nickname': getattr(u, 'nickname', None) or (getattr(u, 'profile', None) and getattr(u.profile, 'nickname', None)),
-        'bio': getattr(u, 'profile', None) and getattr(u.profile, 'bio', None),
+        'nickname': getattr(u, 'nickname', None),
+        'bio': None,
         'avatar': avatar,
     })
 
@@ -485,17 +472,14 @@ def user_me_api(request):
         return JsonResponse({'detail': 'unauthenticated'}, status=401)
     u = request.user
     avatar = None
-    try:
-        if getattr(u, 'profile', None) and u.profile.avatar:
-            avatar = request.build_absolute_uri(u.profile.avatar.url)
-    except Exception:
-        avatar = None
+    if getattr(u, 'avatar_path', None):
+        avatar = request.build_absolute_uri(settings.MEDIA_URL + u.avatar_path)
     return JsonResponse({
         'id': u.id,
         'username': u.username,
         'email': u.email,
-        'nickname': getattr(u, 'nickname', None) or (getattr(u, 'profile', None) and getattr(u.profile, 'nickname', None)),
-        'bio': getattr(u, 'profile', None) and getattr(u.profile, 'bio', None),
+        'nickname': getattr(u, 'nickname', None),
+        'bio': None,
         'avatar': avatar,
     })
 
@@ -527,45 +511,26 @@ def user_update_api(request):
         # reuse existing upload handling
         from django.core.files.storage import default_storage
         path = default_storage.save(f'avatars/{os.urandom(6).hex()}_{f.name}', f)
-        # if using Profile model with ImageField
-        try:
-            profile = user.profile
-        except Exception:
-            profile = None
-        if profile is not None:
-            profile.avatar.name = path
-            profile.save()
-        else:
-            # fallback: set avatar_path on user if field exists
-            if hasattr(user, 'avatar_path'):
-                user.avatar_path = path
+        # set avatar_path on user
+        if hasattr(user, 'avatar_path'):
+            user.avatar_path = path
 
-    # update bio
-    if bio is not None:
-        try:
-            profile = user.profile
-        except Exception:
-            profile = None
-        if profile is not None:
-            profile.bio = bio
-            profile.save()
+    # update bio (Profile removed) — ignore or extend User model in future
+    # currently we do not persist bio
 
     user.save()
 
     # return updated representation
     avatar_url = None
-    try:
-        if getattr(user, 'profile', None) and user.profile.avatar:
-            avatar_url = request.build_absolute_uri(user.profile.avatar.url)
-    except Exception:
-        avatar_url = None
+    if getattr(user, 'avatar_path', None):
+        avatar_url = request.build_absolute_uri(settings.MEDIA_URL + user.avatar_path)
 
     return JsonResponse({
         'id': user.id,
         'username': user.username,
         'email': user.email,
         'nickname': user.nickname,
-        'bio': getattr(user.profile, 'bio', None) if getattr(user, 'profile', None) else None,
+        'bio': None,
         'avatar': avatar_url,
     })
 

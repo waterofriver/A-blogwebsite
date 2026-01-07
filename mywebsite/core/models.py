@@ -57,32 +57,3 @@ class Like(models.Model):
 
 	def __str__(self):
 		return f"Like {self.pk}: user={self.user_id} blog={self.blog_id}"
-
-
-class Profile(models.Model):
-	"""Optional profile extension for user information and avatar storage."""
-	user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
-	nickname = models.CharField(max_length=150, blank=True, null=True)
-	bio = models.TextField(blank=True, null=True)
-	avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
-	created_at = models.DateTimeField(auto_now_add=True)
-
-	def __str__(self):
-		return self.nickname or getattr(self.user, 'username', str(self.user_id))
-
-
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-
-
-@receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def create_or_update_profile(sender, instance, created, **kwargs):
-	try:
-		if created:
-			Profile.objects.create(user=instance)
-		else:
-			# ensure profile exists and save to update timestamps if needed
-			Profile.objects.get_or_create(user=instance)
-	except Exception:
-		# defensive: do not break user creation if profile save fails
-		pass
