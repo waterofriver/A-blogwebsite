@@ -139,7 +139,7 @@ def search(request):
 
     qs = Blog.objects.all()
     if query:
-        qs = qs.filter(Q(title__icontains=query) | Q(author__username__icontains=query) | Q(author__nickname__icontains=query))
+        qs = qs.filter(Q(title__icontains(query) | Q(author__username__icontains(query) | Q(author__nickname__icontains(query)))))
 
     if not getattr(request.user, 'is_admin', False):
         qs = qs.filter(is_approved=True, is_public=True)
@@ -486,11 +486,7 @@ def user_me_api(request):
 
 @csrf_exempt
 def user_update_api(request):
-    """Update current user's profile. Accepts POST with fields: nickname, bio and optional file 'avatar'.
-
-    NOTE: return JSON 401 when unauthenticated (avoid redirecting to HTML login page),
-    so front-end can parse the response correctly.
-    """
+    """Update current user's profile. Accepts POST with fields: nickname, bio and optional file 'avatar'."""
     if not request.user.is_authenticated:
         return JsonResponse({'detail': 'unauthenticated'}, status=401)
 
@@ -499,40 +495,19 @@ def user_update_api(request):
 
     user = request.user
     nickname = request.POST.get('nickname')
-    bio = request.POST.get('bio')
+    if not nickname:
+        try:
+            data = json.loads(request.body.decode('utf-8') or '{}')
+            nickname = data.get('nickname')
+        except Exception:
+            pass
 
-    if nickname is not None:
+    if nickname:
         user.nickname = nickname
-        user.has_set_nickname = True
+        user.save()
+        return JsonResponse({'success': True, 'nickname': user.nickname})
 
-    # save avatar file if provided
-    if 'avatar' in request.FILES:
-        f = request.FILES['avatar']
-        # reuse existing upload handling
-        from django.core.files.storage import default_storage
-        path = default_storage.save(f'avatars/{os.urandom(6).hex()}_{f.name}', f)
-        # set avatar_path on user
-        if hasattr(user, 'avatar_path'):
-            user.avatar_path = path
-
-    # update bio (Profile removed) — ignore or extend User model in future
-    # currently we do not persist bio
-
-    user.save()
-
-    # return updated representation
-    avatar_url = None
-    if getattr(user, 'avatar_path', None):
-        avatar_url = request.build_absolute_uri(settings.MEDIA_URL + user.avatar_path)
-
-    return JsonResponse({
-        'id': user.id,
-        'username': user.username,
-        'email': user.email,
-        'nickname': user.nickname,
-        'bio': None,
-        'avatar': avatar_url,
-    })
+    return JsonResponse({'success': False, 'message': 'No nickname provided'}, status=400)
 
 
 @csrf_exempt
