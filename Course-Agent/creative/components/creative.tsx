@@ -1568,8 +1568,24 @@ export function DesignaliCreative() {
                               <CardDescription className="text-white/90">点击播放 / 支持在线预览</CardDescription>
                             </CardHeader>
                             <CardContent className="p-4 rounded-b-3xl bg-gradient-to-t from-teal-700/20 via-emerald-600/8 to-teal-600/20">
-                              <div className="aspect-video rounded-2xl bg-gradient-to-br from-teal-700/12 via-emerald-600/8 to-teal-500/12 flex items-center justify-center text-sm text-white shadow-md">
-                                <Play className="mr-2 h-4 w-4 text-white" /> 实验视频
+                              <div className="relative">
+                                <video
+                                  className="aspect-video w-full rounded-2xl object-cover"
+                                  src={video.preview_url || video.media_url}
+                                  preload="metadata"
+                                  muted
+                                  playsInline
+                                  onLoadedMetadata={(e) => {
+                                    try {
+                                      e.currentTarget.currentTime = 0.1
+                                    } catch (err) {
+                                      // ignore seek failures; we still get the first frame
+                                    }
+                                  }}
+                                />
+                                <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-black/30 text-sm text-white shadow-md">
+                                  <Play className="mr-2 h-4 w-4 text-white" /> 实验视频
+                                </div>
                               </div>
                             </CardContent>
                           </Card>
