@@ -1575,11 +1575,14 @@ export function DesignaliCreative() {
                                   preload="metadata"
                                   muted
                                   playsInline
-                                  onLoadedMetadata={(e) => {
+                                  onLoadedData={(e) => {
+                                    const v = e.currentTarget
                                     try {
-                                      e.currentTarget.currentTime = 0.1
+                                      const targetTime = Math.min(0.1, Math.max(0.05, (v.duration || 1) * 0.01))
+                                      v.currentTime = targetTime
+                                      v.pause()
                                     } catch (err) {
-                                      // ignore seek failures; we still get the first frame
+                                      // ignore seek failures; still show whatever is available
                                     }
                                   }}
                                 />
@@ -1723,7 +1726,15 @@ export function DesignaliCreative() {
                           return <p className="text-sm text-muted-foreground">暂无法预览此文件，可尝试下载查看。</p>
                         }
                         if (isVideoResource(previewResource)) {
-                          return <video controls className="w-full rounded-2xl" src={src} />
+                          return (
+                            <video
+                              controls
+                              className="w-full rounded-2xl"
+                              src={src}
+                              preload="auto"
+                              playsInline
+                            />
+                          )
                         }
                         return (
                           <iframe

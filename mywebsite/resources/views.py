@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404
-from django.http import FileResponse, Http404, HttpResponse
+from django.http import FileResponse, Http404, HttpResponse, StreamingHttpResponse
 from django.utils import timezone
 from django.db.models import Q
 from django.conf import settings
@@ -540,11 +540,54 @@ class BaseMaterialFileView(APIView):
         except OSError as exc:
             raise Http404(str(exc)) from exc
 
-        response = FileResponse(
-            file_handle,
-            as_attachment=self.as_attachment,
-            filename=file_path.name,
-        )
+        file_size = file_path.stat().st_size
+        range_header = request.META.get('HTTP_RANGE', '').strip()
+        range_start, range_end = 0, file_size - 1
+        use_range = False
+
+        if range_header.startswith('bytes='):
+            parts = range_header.replace('bytes=', '').split('-', 1)
+            try:
+                if parts[0]:
+                    range_start = int(parts[0])
+                if len(parts) > 1 and parts[1]:
+                    range_end = int(parts[1])
+                use_range = True
+            except ValueError:
+                range_start, range_end = 0, file_size - 1
+                use_range = False
+
+        range_start = max(0, range_start)
+        range_end = min(range_end, file_size - 1)
+
+        if use_range and range_start <= range_end:
+            length = range_end - range_start + 1
+
+            def file_iterator(fh, start, length, chunk_size=8192):
+                fh.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = fh.read(min(chunk_size, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+
+            response = StreamingHttpResponse(
+                file_iterator(file_handle, range_start, length),
+                status=206,
+            )
+            response['Content-Length'] = str(length)
+            response['Content-Range'] = f'bytes {range_start}-{range_end}/{file_size}'
+        else:
+            response = FileResponse(
+                file_handle,
+                as_attachment=self.as_attachment,
+                filename=file_path.name,
+            )
+            response['Content-Length'] = str(file_size)
+
+        response['Accept-Ranges'] = 'bytes'
         content_type, _ = mimetypes.guess_type(file_path.name)
         if content_type:
             response['Content-Type'] = content_type
