@@ -756,6 +756,13 @@ class MaterialFilePdfPreviewView(APIView):
         except OSError as exc:
             raise Http404(str(exc)) from exc
 
+        # 更新时间戳，便于按 mtime 清理“最近未访问”缓存
+        try:
+            now_ts = timezone.now().timestamp()
+            os.utime(pdf_path, times=(now_ts, now_ts))
+        except OSError:
+            pass
+
         response = FileResponse(fh, as_attachment=False, filename=pdf_path.name)
         response['Content-Type'] = 'application/pdf'
         response['Content-Disposition'] = f'inline; filename="{quote(pdf_path.name)}"'
