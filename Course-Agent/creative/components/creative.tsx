@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Award,
@@ -65,6 +65,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+
+type SidebarItem = { title: string; icon: ReactNode; url: string; isActive?: boolean; badge?: string }
 
 // 应用示例数据
 const apps = [
@@ -406,7 +408,7 @@ type MaterialsCatalog = {
 }
 
 // 侧边导航简化为四项（保留框架）
-const sidebarItems = [
+const sidebarItems: SidebarItem[] = [
   { title: "首页", icon: <Home />, url: "#home", isActive: true },
   { title: "社区", icon: <Users />, url: "http://127.0.0.1:8000/" },
   { title: "资源", icon: <Bookmark />, url: "#resources" },

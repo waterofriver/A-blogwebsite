@@ -23,12 +23,15 @@ import os
 import mimetypes
 import json
 import html
+import shutil
+import subprocess
 
 from docx import Document
 from pptx import Presentation
 
 MATERIALS_FILENAME = 'materials.json'
 MATERIALS_SUBDIR = 'materials'
+PREVIEW_CACHE_SUBDIR = 'materials_previews'
 BOOK_CATEGORIES = {'参考书籍', '参考资料'}
 VIDEO_FILE_TYPES = {'mp4', 'mov', 'avi', 'wmv', 'mkv'}
 BOOK_CATEGORY_ORDER = ['参考书籍', '参考资料']
@@ -98,6 +101,81 @@ def _resolve_material_file(relative_path: str) -> tuple[str, Path]:
     raise FileNotFoundError(f"{relative_path} not found in {base_dir}")
 
 
+def _preview_cache_root() -> Path:
+    root = Path(settings.MEDIA_ROOT) / PREVIEW_CACHE_SUBDIR
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def _pdf_cache_path(storage_relative: str) -> Path:
+    cache_root = _preview_cache_root()
+    pure = PurePosixPath(storage_relative)
+    # keep directory structure, swap suffix to .pdf
+    target = cache_root / Path(*pure.parts)
+    target = target.with_suffix('.pdf')
+    target.parent.mkdir(parents=True, exist_ok=True)
+    return target
+
+
+def _convert_office_to_pdf(src: Path, dst: Path) -> bool:
+    """Convert Office file to PDF using LibreOffice (soffice). Return True on success."""
+    soffice = shutil.which('soffice')
+    if not soffice:
+        # 尝试常见安装路径（Windows 默认）
+        candidates = [
+            Path("C:/Program Files/LibreOffice/program/soffice.exe"),
+            Path("C:/Program Files (x86)/LibreOffice/program/soffice.exe"),
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                soffice = str(candidate)
+                break
+    if not soffice:
+        return False
+
+    # LibreOffice writes output to --outdir
+    cmd = [
+        soffice,
+        '--headless',
+        '--nologo',
+        '--nofirststartwizard',
+        '--convert-to', 'pdf',
+        '--outdir', str(dst.parent),
+        str(src),
+    ]
+    try:
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+        if result.returncode != 0:
+            return False
+        # After conversion, LibreOffice names file with same basename + .pdf in outdir
+        generated = dst.parent / (src.stem + '.pdf')
+        if generated.exists():
+            generated.replace(dst)
+            return True
+        return dst.exists()
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def _ensure_pdf_preview(storage_relative: str, file_path: Path) -> Optional[Path]:
+    """Ensure Office file has cached PDF preview; return pdf Path or None on failure."""
+    pdf_path = _pdf_cache_path(storage_relative)
+    try:
+        src_mtime = file_path.stat().st_mtime
+    except OSError:
+        return None
+
+    if pdf_path.exists():
+        try:
+            if pdf_path.stat().st_mtime >= src_mtime:
+                return pdf_path
+        except OSError:
+            pass
+
+    success = _convert_office_to_pdf(file_path, pdf_path)
+    return pdf_path if success and pdf_path.exists() else None
+
+
 INLINE_PREVIEW_TYPES = {
     'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4', 'mov', 'avi', 'wmv', 'mkv'
 }
@@ -105,6 +183,7 @@ INLINE_PREVIEW_TYPES = {
 DOC_EXTENSIONS = {'.doc', '.docx'}
 PPT_EXTENSIONS = {'.ppt', '.pptx'}
 TEXT_EXTENSIONS = {'.txt', '.md'}
+OFFICE_EXTENSIONS = DOC_EXTENSIONS | PPT_EXTENSIONS
 
 
 def _build_attachment_payload(entry: dict, request) -> dict:
@@ -115,9 +194,15 @@ def _build_attachment_payload(entry: dict, request) -> dict:
     label = entry.get('label') or entry.get('orig_name') or PurePosixPath(storage_relative).name
     encoded_path = quote(storage_relative, safe='/')
     media_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{MATERIALS_SUBDIR}/{encoded_path}")
+    suffix = PurePosixPath(storage_relative).suffix.lower()
+
     preview_url = request.build_absolute_uri(
         f"{reverse('material-file-preview')}?path={quote(storage_relative)}"
     )
+    if suffix in OFFICE_EXTENSIONS:
+        preview_url = request.build_absolute_uri(
+            f"{reverse('material-file-pdf-preview')}?path={quote(storage_relative)}"
+        )
     download_url = request.build_absolute_uri(
         f"{reverse('material-file-download')}?path={quote(storage_relative)}"
     )
@@ -139,7 +224,7 @@ def _build_attachment_payload(entry: dict, request) -> dict:
             request.build_absolute_uri(
                 f"{reverse('material-file-html-preview')}?path={quote(storage_relative)}"
             )
-            if PurePosixPath(storage_relative).suffix.lower() in DOC_EXTENSIONS | PPT_EXTENSIONS | TEXT_EXTENSIONS
+            if suffix in TEXT_EXTENSIONS
             else None
         ),
         'orig_name': entry.get('orig_name'),
@@ -635,3 +720,44 @@ class MaterialFileHtmlPreviewView(APIView):
             return Response({"detail": f"预览生成失败: {exc}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({"html": html_payload})
+
+
+class MaterialFilePdfPreviewView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        relative_path = request.query_params.get('path')
+        if not relative_path:
+            return Response({"detail": "path query parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            storage_relative, file_path = _resolve_material_file(relative_path)
+        except (ValueError, FileNotFoundError):
+            return Response({"detail": "文件不存在或路径非法"}, status=status.HTTP_404_NOT_FOUND)
+
+        if file_path.suffix.lower() not in OFFICE_EXTENSIONS:
+            return Response({"detail": "仅支持 Office 文档转 PDF 预览"}, status=status.HTTP_400_BAD_REQUEST)
+
+        pdf_path = _ensure_pdf_preview(storage_relative, file_path)
+        if not pdf_path or not pdf_path.exists():
+            # 以 HTML 提示返回，避免 iframe 直接显示 500
+            hint = (
+                "<div style='padding:16px;font-family:sans-serif;line-height:1.6'>"
+                "<h3>无法生成 PDF 预览</h3>"
+                "<p>请确认服务器已安装 LibreOffice 并将 <code>soffice</code> 加入 PATH，"
+                "或调整安装目录后重启服务。</p>"
+                "<p>也可直接点击下载原文件查看。</p>"
+                "</div>"
+            )
+            return HttpResponse(hint, content_type='text/html')
+
+        try:
+            fh = open(pdf_path, 'rb')
+        except OSError as exc:
+            raise Http404(str(exc)) from exc
+
+        response = FileResponse(fh, as_attachment=False, filename=pdf_path.name)
+        response['Content-Type'] = 'application/pdf'
+        response['Content-Disposition'] = f'inline; filename="{quote(pdf_path.name)}"'
+        response['X-Frame-Options'] = 'ALLOWALL'
+        return response
