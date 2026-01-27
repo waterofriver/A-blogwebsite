@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Award,
@@ -65,6 +65,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+
+type SidebarItem = { title: string; icon: ReactNode; url: string; isActive?: boolean; badge?: string }
 
 // 应用示例数据
 const apps = [
@@ -406,7 +408,7 @@ type MaterialsCatalog = {
 }
 
 // 侧边导航简化为四项（保留框架）
-const sidebarItems = [
+const sidebarItems: SidebarItem[] = [
   { title: "首页", icon: <Home />, url: "#home", isActive: true },
   { title: "社区", icon: <Users />, url: "http://127.0.0.1:8000/" },
   { title: "资源", icon: <Bookmark />, url: "#resources" },
@@ -1568,8 +1570,27 @@ export function DesignaliCreative() {
                               <CardDescription className="text-white/90">点击播放 / 支持在线预览</CardDescription>
                             </CardHeader>
                             <CardContent className="p-4 rounded-b-3xl bg-gradient-to-t from-teal-700/20 via-emerald-600/8 to-teal-600/20">
-                              <div className="aspect-video rounded-2xl bg-gradient-to-br from-teal-700/12 via-emerald-600/8 to-teal-500/12 flex items-center justify-center text-sm text-white shadow-md">
-                                <Play className="mr-2 h-4 w-4 text-white" /> 实验视频
+                              <div className="relative">
+                                <video
+                                  className="aspect-video w-full rounded-2xl object-cover"
+                                  src={video.preview_url || video.media_url}
+                                  preload="metadata"
+                                  muted
+                                  playsInline
+                                  onLoadedData={(e) => {
+                                    const v = e.currentTarget
+                                    try {
+                                      const targetTime = Math.min(0.1, Math.max(0.05, (v.duration || 1) * 0.01))
+                                      v.currentTime = targetTime
+                                      v.pause()
+                                    } catch (err) {
+                                      // ignore seek failures; still show whatever is available
+                                    }
+                                  }}
+                                />
+                                <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-black/30 text-sm text-white shadow-md">
+                                  <Play className="mr-2 h-4 w-4 text-white" /> 实验视频
+                                </div>
                               </div>
                             </CardContent>
                           </Card>
@@ -1707,7 +1728,15 @@ export function DesignaliCreative() {
                           return <p className="text-sm text-muted-foreground">暂无法预览此文件，可尝试下载查看。</p>
                         }
                         if (isVideoResource(previewResource)) {
-                          return <video controls className="w-full rounded-2xl" src={src} />
+                          return (
+                            <video
+                              controls
+                              className="w-full rounded-2xl"
+                              src={src}
+                              preload="auto"
+                              playsInline
+                            />
+                          )
                         }
                         return (
                           <iframe
