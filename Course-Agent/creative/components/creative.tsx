@@ -434,6 +434,13 @@ const sidebarItems: SidebarItem[] = [
   { title: "学习", icon: <BookOpen />, url: "#learn" },
 ]
 
+const moduleTabs = [
+  { value: "home", label: "首页" },
+  { value: "apps", label: "社区" },
+  { value: "resources", label: "资源" },
+  { value: "learn", label: "学习" },
+]
+
 // 论坛类型
 interface ForumPost {
   id: number
@@ -1150,19 +1157,16 @@ export function DesignaliCreative() {
         <main className="flex-1 p-4 md:p-6">
           <Tabs defaultValue="home" value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <TabsList className="grid w-full max-w-[800px] grid-cols-4 rounded-2xl p-1">
-                <TabsTrigger value="home" className="rounded-xl data-[state=active]:rounded-xl">
-                  首页
-                </TabsTrigger>
-                <TabsTrigger value="apps" className="rounded-xl data-[state=active]:rounded-xl">
-                  社区
-                </TabsTrigger>
-                <TabsTrigger value="resources" className="rounded-xl data-[state=active]:rounded-xl">
-                  资源
-                </TabsTrigger>
-                <TabsTrigger value="learn" className="rounded-xl data-[state=active]:rounded-xl">
-                  学习
-                </TabsTrigger>
+              <TabsList className="grid w-full max-w-[840px] grid-cols-4 rounded-full bg-muted/60 p-1.5 shadow-inner">
+                {moduleTabs.map((tab) => (
+                  <TabsTrigger
+                    key={tab.value}
+                    value={tab.value}
+                    className="rounded-full px-4 py-2 text-sm font-medium transition-all hover:bg-background/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md"
+                  >
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
               </TabsList>
               <div className="hidden md:flex gap-2">
                 <Button variant="outline" className="rounded-2xl">

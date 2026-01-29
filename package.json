@@ -1,0 +1,5 @@
+{
+	"dependencies": {
+		"@coze/api": "^1.3.9"
+	}
+}
