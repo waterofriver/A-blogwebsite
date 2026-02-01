@@ -20,6 +20,7 @@ import {
   ImageIcon,
   Layers,
   LayoutGrid,
+  Lightbulb,
   Menu,
   MessageSquare,
   Palette,
@@ -46,6 +47,8 @@ import {
   Type,
   CuboidIcon,
   X,
+  Crown,
+  TrendingUp,
 } from "lucide-react"
 
 import Link from "next/link"
@@ -68,7 +71,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-
 
 // 应用示例数据
 const apps = [
@@ -409,6 +411,199 @@ type MaterialsCatalog = {
   books: CatalogAttachment[]
 }
 
+// Coze自动化出题组件
+function CozeQuizModule() {
+  const [cozeReady, setCozeReady] = useState(false);
+  const [cozeError, setCozeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // 加载Coze SDK脚本
+    const script = document.createElement('script');
+    script.src = 'https://lf-cdn.coze.cn/obj/unpkg/flow-platform/builder-web-sdk/0.1.1-beta.1/dist/umd/index.js';
+    script.async = true;
+    
+    script.onload = () => {
+      try {
+        if (typeof (window as any).CozeWebSDK === 'undefined') {
+          setCozeError('无法加载 Coze Web SDK');
+          return;
+        }
+
+        // 初始化Coze SDK
+        const sdk = new (window as any).CozeWebSDK.AppWebSDK({
+          token: 'sat_HfbccJtVnVNSq2yPhKVMuHWf9KQ87UCGjvdzgBY5TJIAHNX1jfE6AoNUpSAN0Jqo',
+          appId: '7560276108453675054',
+          container: '#coze-quiz-container',
+          userInfo: {
+            id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            nickname: '学习用户',
+            avatarUrl: 'https://lf-coze-web-cdn.coze.cn/obj/eden-cn/lm-lgvj/ljhwZthlaukjlkulzlp/coze/coze-logo.png',
+          },
+          ui: {
+            className: 'coze-quiz-theme',
+          },
+          onReady: function() {
+            console.log('Coze 自动化出题模块初始化成功');
+            setCozeReady(true);
+          },
+          onError: function(error: any) {
+            console.error('Coze 自动化出题模块初始化失败:', error);
+            setCozeError(`初始化失败: ${error.message || '未知错误'}`);
+          }
+        });
+
+        // 保存SDK实例以便后续使用
+        (window as any).cozeQuizSDK = sdk;
+      } catch (error: any) {
+        console.error('Coze SDK 初始化过程中发生错误:', error);
+        setCozeError(`初始化错误: ${error.message}`);
+      }
+    };
+
+    script.onerror = () => {
+      setCozeError('无法加载 Coze SDK 脚本');
+    };
+
+    document.head.appendChild(script);
+
+    return () => {
+      // 清理脚本
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, []);
+
+  return (
+    <div id="coze-quiz-module" className="space-y-4 h-full">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-xl font-semibold">AI 智能出题助手</h3>
+          <p className="text-sm text-muted-foreground">
+            与AI对话，获取个性化练习题和知识点讲解
+          </p>
+        </div>
+        <Badge variant="outline" className="rounded-xl bg-blue-50 text-blue-600">
+          实验性功能
+        </Badge>
+      </div>
+
+     <div className="rounded-3xl border overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 flex flex-col h-[calc(100vh-200px)]">
+        <div className="p-4 border-b bg-white">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div>
+              <h4 className="font-medium">Coze AI 学习助手</h4>
+              <p className="text-xs text-muted-foreground">
+                基于大模型的智能出题与答疑系统
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div id="coze-quiz-container" className="relative h-full">
+          {!cozeReady && !cozeError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+              <p className="text-sm text-muted-foreground">正在加载 AI 出题助手...</p>
+              <p className="text-xs text-muted-foreground mt-2">请稍候片刻</p>
+            </div>
+          )}
+
+          {cozeError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 p-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600 mb-4">
+                <X className="h-6 w-6" />
+              </div>
+              <p className="font-medium text-red-600">加载失败</p>
+              <p className="text-sm text-muted-foreground text-center mt-1">{cozeError}</p>
+              <Button 
+                variant="outline" 
+                className="mt-4 rounded-xl"
+                onClick={() => window.location.reload()}
+              >
+                重试
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t bg-white">
+          <div className="flex items-center justify-between">
+            <div className="text-xs text-muted-foreground">
+              {cozeReady ? (
+                <span className="flex items-center gap-1 text-green-600">
+                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+                  AI 助手已就绪
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <div className="h-2 w-2 rounded-full bg-gray-400"></div>
+                  正在初始化
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="rounded-xl text-xs">
+                切换主题
+              </Button>
+              <Button variant="outline" size="sm" className="rounded-xl text-xs">
+                使用说明
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Card className="rounded-2xl">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                <Lightbulb className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">智能出题</p>
+                <p className="text-xs text-muted-foreground">根据学习进度自动生成题目</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 text-green-600">
+                <MessageSquare className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">即时答疑</p>
+                <p className="text-xs text-muted-foreground">随时解答学习中的疑问</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
+                <TrendingUp className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">学习分析</p>
+                <p className="text-xs text-muted-foreground">分析学习弱点，推荐内容</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 // 侧边导航简化为四项（保留框架）
 type SidebarItem = {
   title: string
@@ -468,7 +663,6 @@ interface ForumDetail extends ForumPost {
   comments: ForumComment[]
   liked?: boolean
 }
-
 
 export function DesignaliCreative() {
   const [progress, setProgress] = useState(0)
@@ -777,7 +971,6 @@ export function DesignaliCreative() {
       setCurrentNickname(updated.nickname || null)
       setShowNicknameModal(false)
     } catch (e) {
-      // keep modal open; developer can inspect console
       // eslint-disable-next-line no-console
       console.error('保存昵称失败', e)
       alert('保存昵称失败，请重试')
@@ -829,7 +1022,7 @@ export function DesignaliCreative() {
     if (item.html_preview_url) {
       setPreviewLoading(true)
       fetch(item.html_preview_url)
-        .then((res) => (res.ok ? res.json() : Promise.reject(res.statusText)))
+        .then((res) => (res.ok ? r.json() : Promise.reject(res.statusText)))
         .then((data) => {
           setPreviewHtml(data.html || '<p>暂无内容</p>')
         })
@@ -1398,16 +1591,31 @@ export function DesignaliCreative() {
                   </section>
                 </TabsContent>
 
-                <TabsContent value="learn" className="space-y-6 mt-0" id="learn-section">
-                  <Card className="rounded-3xl border-dashed">
-                    <CardContent className="p-8 text-center space-y-3">
-                      <Badge className="rounded-xl">学习中心</Badge>
-                      <h2 className="text-2xl font-semibold">内容筹备中</h2>
-                      <p className="text-muted-foreground">
-                        此板块将用于展示课程路线与学习数据，目前暂未开放，后续接入后端即可自动填充。
-                      </p>
-                    </CardContent>
-                  </Card>
+                <TabsContent value="learn" className="space-y-8 mt-0" id="learn-section">
+                  <section>
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5 }}
+                      className="overflow-hidden rounded-3xl bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 p-8 text-white"
+                    >
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="space-y-2">
+                          <h2 className="text-3xl font-bold">学习与进阶</h2>
+                          <p className="max-w-[600px] text-white/80">通过教程、课程与AI助手拓展你的创意技能。</p>
+                        </div>
+                        <Button className="w-fit rounded-2xl bg-white text-emerald-700 hover:bg-white/90">
+                          <Crown className="mr-2 h-4 w-4" />
+                          升级专业版
+                        </Button>
+                      </div>
+                    </motion.div>
+                  </section>
+
+                  {/* Coze 自动化出题模块 */}
+                  <section className="space-y-4">
+                    <CozeQuizModule />
+                  </section>
                 </TabsContent>
 
                 <TabsContent value="apps" className="space-y-8 mt-0">
