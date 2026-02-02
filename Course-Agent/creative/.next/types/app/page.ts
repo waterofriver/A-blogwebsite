@@ -1,4 +1,4 @@
-// File: D:\Study\机器人与安全\A-blogwebsite--\Course-Agent\creative\app\page.tsx
+// File: D:\Study\truework\A-blogwebsite-add-ai\Course-Agent\creative\app\page.tsx
 import * as entry from '../../../app/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
