@@ -49,6 +49,7 @@ type MaterialsCatalog = {
   experiments: ExperimentBucket[]
   videos: CatalogAttachment[]
   books: CatalogAttachment[]
+  handbook_download_url?: string | null
 }
 
 export function ResourcesSection() {
@@ -59,6 +60,8 @@ export function ResourcesSection() {
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [selectedExperiment, setSelectedExperiment] = useState<ExperimentBucket | null>(null)
+  const [rebuildLoading, setRebuildLoading] = useState(false)
+  const [rebuildMessage, setRebuildMessage] = useState<string | null>(null)
 
   const loadCatalog = useCallback(() => {
     setCatalogError(null)
@@ -82,6 +85,27 @@ export function ResourcesSection() {
     loadCatalog()
   }, [loadCatalog])
 
+  const triggerRebuild = useCallback(async () => {
+    setRebuildMessage(null)
+    setRebuildLoading(true)
+    try {
+      const res = await fetch(`${RESOURCES_API_BASE}/rebuild/`, {
+        method: "POST",
+        credentials: "include",
+      })
+      if (!res.ok) {
+        throw new Error("同步失败")
+      }
+      await res.json().catch(() => ({}))
+      setRebuildMessage("同步完成")
+      await loadCatalog()
+    } catch (_err) {
+      setRebuildMessage("同步失败")
+    } finally {
+      setRebuildLoading(false)
+    }
+  }, [loadCatalog])
+
   const experimentBuckets = materialsCatalog?.experiments || []
   const videoList = materialsCatalog?.videos || []
   const bookList = materialsCatalog?.books || []
@@ -90,6 +114,7 @@ export function ResourcesSection() {
         new Date(materialsCatalog.updated_at),
       )
     : null
+  const handbookDownloadUrl = materialsCatalog?.handbook_download_url || null
 
   const openPreview = useCallback((item: CatalogAttachment | null) => {
     if (!item) return
@@ -136,15 +161,38 @@ export function ResourcesSection() {
                 <h2 className="mt-2 text-3xl font-bold md:text-4xl">实验全流程手册</h2>
               </div>
               <p className="max-w-[560px] text-white/85">更新至实验一至实验七。</p>
-              <Button className="rounded-2xl bg-white text-rose-600 hover:bg-white/90" asChild>
-                <Link href={HANDBOOK_LINK} target="_blank">
-                  查看云端手册
-                </Link>
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button className="rounded-2xl bg-white text-rose-600 hover:bg-white/90" asChild>
+                  <Link href={HANDBOOK_LINK} target="_blank">
+                    查看云端手册
+                  </Link>
+                </Button>
+                {handbookDownloadUrl && (
+                  <Button className="rounded-2xl bg-white/90 text-rose-700 hover:bg-white" asChild>
+                    <Link href={handbookDownloadUrl} target="_blank">
+                      下载手册
+                    </Link>
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="rounded-3xl bg-white/15 p-6 text-right backdrop-blur">
-              <p className="text-sm text-white/70">最近同步</p>
-              <p className="text-2xl font-semibold">{formattedUpdatedAt || "加载中"}</p>
+            <div className="rounded-3xl bg-white/15 p-6 text-right backdrop-blur space-y-3">
+              <div>
+                <p className="text-sm text-white/70">最近同步</p>
+                <p className="text-2xl font-semibold">{formattedUpdatedAt || "加载中"}</p>
+              </div>
+              <div className="space-y-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="rounded-2xl bg-white/80 text-rose-700 hover:bg-white"
+                  onClick={triggerRebuild}
+                  disabled={rebuildLoading}
+                >
+                  {rebuildLoading ? "同步中..." : "资源更新"}
+                </Button>
+                {rebuildMessage && <p className="text-xs text-white/80">{rebuildMessage}</p>}
+              </div>
             </div>
           </div>
         </motion.div>
