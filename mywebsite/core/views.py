@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST, require_GET
+from django.views.decorators.http import require_POST, require_GET, require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
@@ -111,13 +111,6 @@ def api_register(request):
         user.nickname = nickname
         user.has_set_nickname = True
     user.save()
-    # ensure profile exists
-    try:
-        if getattr(user, 'profile', None) is None:
-            from .models import Profile
-            Profile.objects.get_or_create(user=user, defaults={'nickname': nickname or ''})
-    except Exception:
-        pass
 
     # auto-login
     auth_login(request, user)
@@ -146,7 +139,7 @@ def search(request):
 
     qs = Blog.objects.all()
     if query:
-        qs = qs.filter(Q(title__icontains=query) | Q(author__username__icontains=query) | Q(author__nickname__icontains=query))
+        qs = qs.filter(Q(title__icontains(query) | Q(author__username__icontains(query) | Q(author__nickname__icontains(query)))))
 
     if not getattr(request.user, 'is_admin', False):
         qs = qs.filter(is_approved=True, is_public=True)
@@ -439,20 +432,17 @@ def community_posts_api(request):
 def users_list_api(request):
     from django.contrib.auth import get_user_model
     UserModel = get_user_model()
-    qs = UserModel.objects.all().select_related('profile')
+    qs = UserModel.objects.all()
     data = []
     for u in qs:
         avatar = None
-        try:
-            if getattr(u, 'profile', None) and u.profile.avatar:
-                avatar = request.build_absolute_uri(u.profile.avatar.url)
-        except Exception:
-            avatar = None
+        if getattr(u, 'avatar_path', None):
+            avatar = request.build_absolute_uri(settings.MEDIA_URL + u.avatar_path)
         data.append({
             'id': u.id,
             'username': u.username,
             'email': u.email,
-            'nickname': getattr(u, 'nickname', None) or (getattr(u, 'profile', None) and getattr(u.profile, 'nickname', None)),
+            'nickname': getattr(u, 'nickname', None),
             'avatar': avatar,
         })
     return JsonResponse({'results': data})
@@ -462,19 +452,16 @@ def users_list_api(request):
 def user_detail_api(request, pk: int):
     from django.contrib.auth import get_user_model
     UserModel = get_user_model()
-    u = get_object_or_404(UserModel.objects.select_related('profile'), pk=pk)
+    u = get_object_or_404(UserModel.objects.all(), pk=pk)
     avatar = None
-    try:
-        if getattr(u, 'profile', None) and u.profile.avatar:
-            avatar = request.build_absolute_uri(u.profile.avatar.url)
-    except Exception:
-        avatar = None
+    if getattr(u, 'avatar_path', None):
+        avatar = request.build_absolute_uri(settings.MEDIA_URL + u.avatar_path)
     return JsonResponse({
         'id': u.id,
         'username': u.username,
         'email': u.email,
-        'nickname': getattr(u, 'nickname', None) or (getattr(u, 'profile', None) and getattr(u.profile, 'nickname', None)),
-        'bio': getattr(u, 'profile', None) and getattr(u.profile, 'bio', None),
+        'nickname': getattr(u, 'nickname', None),
+        'bio': None,
         'avatar': avatar,
     })
 
@@ -485,28 +472,21 @@ def user_me_api(request):
         return JsonResponse({'detail': 'unauthenticated'}, status=401)
     u = request.user
     avatar = None
-    try:
-        if getattr(u, 'profile', None) and u.profile.avatar:
-            avatar = request.build_absolute_uri(u.profile.avatar.url)
-    except Exception:
-        avatar = None
+    if getattr(u, 'avatar_path', None):
+        avatar = request.build_absolute_uri(settings.MEDIA_URL + u.avatar_path)
     return JsonResponse({
         'id': u.id,
         'username': u.username,
         'email': u.email,
-        'nickname': getattr(u, 'nickname', None) or (getattr(u, 'profile', None) and getattr(u.profile, 'nickname', None)),
-        'bio': getattr(u, 'profile', None) and getattr(u.profile, 'bio', None),
+        'nickname': getattr(u, 'nickname', None),
+        'bio': None,
         'avatar': avatar,
     })
 
 
 @csrf_exempt
 def user_update_api(request):
-    """Update current user's profile. Accepts POST with fields: nickname, bio and optional file 'avatar'.
-
-    NOTE: return JSON 401 when unauthenticated (avoid redirecting to HTML login page),
-    so front-end can parse the response correctly.
-    """
+    """Update current user's profile. Accepts POST with fields: nickname, bio and optional file 'avatar'."""
     if not request.user.is_authenticated:
         return JsonResponse({'detail': 'unauthenticated'}, status=401)
 
@@ -515,59 +495,139 @@ def user_update_api(request):
 
     user = request.user
     nickname = request.POST.get('nickname')
-    bio = request.POST.get('bio')
+    if not nickname:
+        try:
+            data = json.loads(request.body.decode('utf-8') or '{}')
+            nickname = data.get('nickname')
+        except Exception:
+            pass
 
-    if nickname is not None:
+    if nickname:
         user.nickname = nickname
-        user.has_set_nickname = True
+        user.save()
+        return JsonResponse({'success': True, 'nickname': user.nickname})
 
-    # save avatar file if provided
-    if 'avatar' in request.FILES:
-        f = request.FILES['avatar']
-        # reuse existing upload handling
-        from django.core.files.storage import default_storage
-        path = default_storage.save(f'avatars/{os.urandom(6).hex()}_{f.name}', f)
-        # if using Profile model with ImageField
-        try:
-            profile = user.profile
-        except Exception:
-            profile = None
-        if profile is not None:
-            profile.avatar.name = path
-            profile.save()
-        else:
-            # fallback: set avatar_path on user if field exists
-            if hasattr(user, 'avatar_path'):
-                user.avatar_path = path
+    return JsonResponse({'success': False, 'message': 'No nickname provided'}, status=400)
 
-    # update bio
-    if bio is not None:
-        try:
-            profile = user.profile
-        except Exception:
-            profile = None
-        if profile is not None:
-            profile.bio = bio
-            profile.save()
 
-    user.save()
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def api_blogs(request):
+    """List blogs or create new one. Uses session auth (withCredentials)."""
+    if request.method == 'GET':
+        qs = Blog.objects.select_related('author').filter(is_public=True, is_approved=True).order_by('-created_at')
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 20))
+        start = (page - 1) * page_size
+        end = start + page_size
+        items = []
+        for p in qs[start:end]:
+            author = getattr(p, 'author', None)
+            author_name = author.nickname if getattr(author, 'nickname', None) else getattr(author, 'username', None)
+            items.append({
+                'id': p.pk,
+                'title': p.title,
+                'content': p.content,
+                'created_at': p.created_at.isoformat() if getattr(p, 'created_at', None) else None,
+                'updated_at': p.updated_at.isoformat() if getattr(p, 'updated_at', None) else None,
+                'author': author_name,
+                'author_id': getattr(author, 'id', None),
+                'likes_count': p.likes_count,
+                'views_count': p.views_count,
+                'is_pinned': p.is_pinned,
+                'is_featured': p.is_featured,
+            })
+        return JsonResponse({
+            'results': items,
+            'page': page,
+            'page_size': page_size,
+            'total': qs.count(),
+        })
 
-    # return updated representation
-    avatar_url = None
+    # POST create
+    if not request.user.is_authenticated:
+        return JsonResponse({'detail': 'unauthenticated'}, status=401)
     try:
-        if getattr(user, 'profile', None) and user.profile.avatar:
-            avatar_url = request.build_absolute_uri(user.profile.avatar.url)
+        payload = json.loads(request.body.decode('utf-8') or '{}')
     except Exception:
-        avatar_url = None
-
+        payload = {}
+    title = payload.get('title') or request.POST.get('title')
+    content = payload.get('content') or request.POST.get('content')
+    if not title or not content:
+        return JsonResponse({'detail': 'title and content required'}, status=400)
+    blog = Blog.objects.create(author=request.user, title=title, content=content)
     return JsonResponse({
-        'id': user.id,
-        'username': user.username,
-        'email': user.email,
-        'nickname': user.nickname,
-        'bio': getattr(user.profile, 'bio', None) if getattr(user, 'profile', None) else None,
-        'avatar': avatar_url,
+        'id': blog.id,
+        'title': blog.title,
+        'content': blog.content,
+        'created_at': blog.created_at.isoformat() if getattr(blog, 'created_at', None) else None,
     })
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def api_blog_detail(request, blog_id: int):
+    blog = get_object_or_404(Blog.objects.select_related('author'), pk=blog_id)
+    author = getattr(blog, 'author', None)
+    author_name = author.nickname if getattr(author, 'nickname', None) else getattr(author, 'username', None)
+    data = {
+        'id': blog.pk,
+        'title': blog.title,
+        'content': blog.content,
+        'created_at': blog.created_at.isoformat() if getattr(blog, 'created_at', None) else None,
+        'updated_at': blog.updated_at.isoformat() if getattr(blog, 'updated_at', None) else None,
+        'author': author_name,
+        'author_id': getattr(author, 'id', None),
+        'likes_count': blog.likes_count,
+        'views_count': blog.views_count,
+        'is_pinned': blog.is_pinned,
+        'is_featured': blog.is_featured,
+        'comments': [],
+        'liked': False,
+    }
+    if request.user.is_authenticated:
+        data['liked'] = Like.objects.filter(user=request.user, blog=blog).exists()
+    for c in blog.comments.select_related('author').order_by('-created_at'):
+        data['comments'].append({
+            'id': c.id,
+            'content': c.content,
+            'created_at': c.created_at.isoformat() if getattr(c, 'created_at', None) else None,
+            'author': c.author.nickname if getattr(c.author, 'nickname', None) else c.author.username,
+            'author_id': c.author.id,
+        })
+    return JsonResponse(data)
+
+
+@csrf_exempt
+@require_POST
+def api_blog_comments(request, blog_id: int):
+    if not request.user.is_authenticated:
+        return JsonResponse({'detail': 'unauthenticated'}, status=401)
+    blog = get_object_or_404(Blog, pk=blog_id)
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        payload = {}
+    content = payload.get('content') or request.POST.get('content')
+    if not content:
+        return JsonResponse({'detail': 'content required'}, status=400)
+    c = Comment.objects.create(blog=blog, author=request.user, content=content)
+    return JsonResponse({
+        'id': c.id,
+        'content': c.content,
+        'created_at': c.created_at.isoformat() if getattr(c, 'created_at', None) else None,
+        'author': c.author.nickname if getattr(c.author, 'nickname', None) else c.author.username,
+        'author_id': c.author.id,
+    })
+
+
+@csrf_exempt
+@require_POST
+def api_blog_view(request, blog_id: int):
+    blog = get_object_or_404(Blog, pk=blog_id)
+    blog.views_count = (blog.views_count or 0) + 1
+    blog.save(update_fields=['views_count'])
+    return JsonResponse({'views_count': blog.views_count})
 
 
 @csrf_exempt

@@ -1,2 +1,199 @@
-# An educational platform website
-一个简陋教学平台网站（基于python）
+# Monorepo 项目说明
+
+本仓库是一个多项目（Monorepo）结构，包含：
+
+- 一个 Next.js 前端应用：[`Course-Agent/creative`](Course-Agent/creative/)
+- 一个 Django 后端应用：[`mywebsite`](mywebsite/)
+
+---
+
+## 目录结构概览
+
+- [`apps/`](apps/)
+  - `api/`：后端 API（待根据实际补充说明）
+  - `web/`：Web 前端（待根据实际补充说明）
+- [`Course-Agent/creative/`](Course-Agent/creative/)
+  - Next.js + TypeScript + Tailwind CSS 前端工程
+  - 使用 `pnpm` 管理依赖
+- [`mywebsite/`](mywebsite/)
+  - Django Web 项目，使用 SQLite 作为默认数据库
+- [`infra/`](infra/)
+  - `docker/`：容器相关配置
+  - `github/`：GitHub Actions 等 CI/CD 配置
+  - `k8s/`：Kubernetes 部署配置
+  - `openapi/`：OpenAPI 规范文件
+  - `scripts/`：自动化脚本
+- 根目录文件
+  - [`package.json`](package.json)、[`pnpm-lock.yaml`](pnpm-lock.yaml)：用于管理前端相关依赖或脚本
+  - [`README.md`](README.md)：项目说明（当前文件）
+
+---
+
+## 环境要求
+
+启动整个仓库中各项目，建议安装以下环境：
+
+- Node.js（推荐 LTS 版本，例如 18+）
+- `pnpm`（用于管理 `Course-Agent/creative` 依赖）
+- Python 3.9+（具体版本以 [`mywebsite/requirements.txt`](mywebsite/requirements.txt) 为准）
+- `pip` 或 `pipenv` / `poetry` 等 Python 包管理工具
+- （可选）Docker 与 Docker Compose，用于容器化部署
+
+---
+
+## 1. `Course-Agent/creative` 前端应用
+
+### 1.1 项目说明
+
+[`Course-Agent/creative`](Course-Agent/creative/) 是一个使用 **Next.js 13+ App Router** 的前端应用，主要特征：
+
+- 使用 `app/` 目录进行路由和页面组织：[`Course-Agent/creative/app/`](Course-Agent/creative/app/)
+- 使用 Tailwind CSS 进行样式开发：
+  - [`Course-Agent/creative/tailwind.config.ts`](Course-Agent/creative/tailwind.config.ts)
+  - [`Course-Agent/creative/postcss.config.mjs`](Course-Agent/creative/postcss.config.mjs)
+- 使用 TypeScript：
+  - [`Course-Agent/creative/tsconfig.json`](Course-Agent/creative/tsconfig.json)
+- 组件与业务逻辑组织：
+  - [`Course-Agent/creative/components/`](Course-Agent/creative/components/)：通用 UI 组件
+  - [`Course-Agent/creative/hooks/`](Course-Agent/creative/hooks/)：自定义 React Hooks
+  - [`Course-Agent/creative/lib/`](Course-Agent/creative/lib/)：工具函数、服务封装
+  - [`Course-Agent/creative/data/`](Course-Agent/creative/data/)：静态数据或配置
+
+### 1.2 安装依赖
+
+```bash
+cd Course-Agent/creative
+pnpm install（如果不行可以使用npm）
+```
+
+### 1.3 环境变量
+
+本地开发使用 [`Course-Agent/creative/.env.local`](Course-Agent/creative/.env.local) 存放环境变量，例如 API 地址、第三方服务密钥等。示例（请根据实际项目补充）：
+
+```bash
+# Course-Agent/creative/.env.local
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api
+```
+
+### 1.4 启动开发服务器
+
+```bash
+cd Course-Agent/creative
+pnpm dev
+```
+
+默认情况下，Next.js 开发服务器会在 $http://localhost:3000$ 启动。
+
+### 1.5 生产构建与运行
+
+```bash
+cd Course-Agent/creative
+pnpm build
+pnpm start
+```
+
+---
+
+## 2. `mywebsite` 后端应用（Django）
+
+### 2.1 项目说明
+
+[`mywebsite`](mywebsite/) 是一个 Django Web 应用，包含：
+
+- 管理脚本：[`mywebsite/manage.py`](mywebsite/manage.py)
+- 主项目配置包：[`mywebsite/mywebsite/`](mywebsite/mywebsite/)
+- 核心业务 app：[`mywebsite/core/`](mywebsite/core/)
+- 模板目录：[`mywebsite/templates/`](mywebsite/templates/)
+- 文件上传目录：[`mywebsite/upload/`](mywebsite/upload/)
+- 数据备份目录：[`mywebsite/backups/`](mywebsite/backups/)
+- 额外资源：[`mywebsite/resources/`](mywebsite/resources/)
+- 默认数据库：[`mywebsite/db.sqlite3`](mywebsite/db.sqlite3)
+
+### 2.2 创建虚拟环境并安装依赖
+
+在根目录或 `mywebsite` 目录下执行：
+
+```bash
+cd mywebsite
+
+# 创建虚拟环境（示例使用 venv）
+python -m venv .venv
+source .venv/bin/activate  # Windows 使用: .venv\Scripts\activate
+
+# 安装依赖
+pip install -r requirements.txt
+```
+
+### 2.3 数据库迁移
+
+如果你不打算使用现成的 [`mywebsite/db.sqlite3`](mywebsite/db.sqlite3)，可以先删除该文件，然后执行迁移：
+
+```bash
+cd mywebsite
+python manage.py migrate
+```
+
+### 2.4 创建管理员账号（可选）
+
+```bash
+cd mywebsite
+python manage.py createsuperuser
+```
+
+### 2.5 启动开发服务器
+
+```bash
+cd mywebsite
+python manage.py runserver
+```
+
+默认情况下，Django 开发服务器会在 $http://localhost:8000$ 启动。
+
+### 2.6 运行测试脚本
+
+项目提供了一个测试脚本 [`mywebsite/test_coze_script.py`](mywebsite/test_coze_script.py)，可用于验证部分功能（具体用途请参考脚本实现）：
+
+```bash
+cd mywebsite
+python test_coze_script.py
+```
+
+---
+
+## 3. 常见开发流程
+
+### 3.1 同时启动前后端
+
+1. 启动 Django 后端（端口 8000）：
+
+   ```bash
+   cd mywebsite
+   python manage.py runserver
+   ```
+
+2. 启动 Next.js 前端（端口 3000）：
+
+   ```bash
+   cd Course-Agent/creative
+   pnpm dev（如果不行可使用npm）
+   ```
+
+3. 在前端 `.env.local` 中配置后端 API 地址，例如：
+
+   ```bash
+   NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api
+   ```
+
+
+---
+
+## 4. 代码规范与贡献
+
+- 前端（`Course-Agent/creative`）：
+  - 使用 TypeScript
+  - 推荐使用 ESLint + Prettier（请根据 [`Course-Agent/creative/package.json`](Course-Agent/creative/package.json) 中的脚本执行）
+- 后端（`mywebsite`）：
+  - 遵循 PEP8 规范
+  - 推荐使用 `pytest` 或 Django 自带测试框架
+
+欢迎通过 PR、Issue 的方式参与贡献。

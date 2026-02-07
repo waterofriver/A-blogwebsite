@@ -1,4 +1,8 @@
-// File: E:\GitHub\A-blogwebsite\Course-Agent\creative\app\layout.tsx
+<<<<<<< HEAD
+// File: C:\Users\PEIWENHAO2\Documents\GitHub\A-blogwebsite\Course-Agent\creative\app\layout.tsx
+=======
+// File: D:\Study\truework\A-blogwebsite-add-ai\Course-Agent\creative\app\layout.tsx
+>>>>>>> origin/add-ai
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
