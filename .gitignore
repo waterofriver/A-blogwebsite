@@ -214,8 +214,8 @@ Temporary Items
 /coverage
 
 # next.js
-/.next/
-/out/
+Course-Agent/creative/.next/
+Course-Agent/creative/out/
 
 # production
 /build
