@@ -280,12 +280,12 @@ def blog_detail(request, blog_id):
             blog.title = request.POST.get('title')
             blog.content = request.POST.get('content')
             blog.save()
-            messages.success(request, '博客更新成功！')
+            messages.success(request, '帖子更新成功！')
             return redirect('blog_detail', blog_id=blog_id)
 
         if 'delete_blog' in request.POST and (is_author or getattr(request.user, 'is_admin', False)):
             blog.delete()
-            messages.success(request, '博客删除成功！')
+            messages.success(request, '帖子删除成功！')
             return redirect('home')
 
         if 'comment_content' in request.POST:
@@ -305,7 +305,7 @@ def create_blog(request):
         is_public = 'is_public' in request.POST
 
         new_blog = Blog.objects.create(title=title, content=content, author=request.user, is_public=is_public, is_approved=getattr(request.user, 'is_admin', False))
-        messages.success(request, '博客创建成功！' + ('等待管理员审核。' if not request.user.is_admin else ''))
+        messages.success(request, '帖子创建成功！' + ('等待管理员审核。' if not request.user.is_admin else ''))
         return redirect('home')
 
     return render(request, 'create_blog.html')
