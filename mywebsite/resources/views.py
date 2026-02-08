@@ -16,6 +16,7 @@ from .serializers import (
     AttachmentSerializer
 )
 from pathlib import Path, PurePosixPath
+from tempfile import NamedTemporaryFile
 from urllib.parse import quote
 from datetime import datetime, timezone as dt_timezone
 from typing import Optional
@@ -35,6 +36,7 @@ PREVIEW_CACHE_SUBDIR = 'materials_previews'
 BOOK_CATEGORIES = {'参考书籍', '参考资料'}
 VIDEO_FILE_TYPES = {'mp4', 'mov', 'avi', 'wmv', 'mkv'}
 BOOK_CATEGORY_ORDER = ['参考书籍', '参考资料']
+HANDBOOK_CATEGORY = '机器人与安全实验1-7，全流程图文实验手册.pdf'
 
 
 def _materials_json_path() -> Path:
@@ -213,7 +215,7 @@ def _build_attachment_payload(entry: dict, request) -> dict:
         'category_display': category_display,
         'category_order': category_order,
         'item_name': entry.get('item_name'),
-        'item_label': entry.get('item_label'),
+        'item_label': entry.get('item_label') or category_display,
         'label': label,
         'filename': storage_relative,
         'file_type': file_type,
@@ -306,6 +308,80 @@ def _load_material_entries():
         data = json.load(handle)
     updated_at = datetime.fromtimestamp(materials_path.stat().st_mtime, tz=dt_timezone.utc)
     return data, updated_at
+
+
+def _scan_material_entries() -> list[dict]:
+    base_dir = Path(settings.MEDIA_ROOT) / MATERIALS_SUBDIR
+    if not base_dir.exists():
+        raise FileNotFoundError(f"{base_dir} not found; nothing to scan")
+
+    def _strip_prefix(name: str) -> str:
+        # remove leading digits + underscore, e.g., "10_实验一" -> "实验一"
+        parts = name.split('_', 1)
+        if len(parts) == 2 and parts[0].isdigit():
+            return parts[1]
+        return name
+
+    def _strip_extension(name: str) -> str:
+        return PurePosixPath(name).stem
+
+    def _shorten_dash(name: str) -> str:
+        # keep text before '—' if present to avoid overly long labels
+        return name.split('—', 1)[0] if '—' in name else name
+
+    entries: list[dict] = []
+    for path in base_dir.rglob('*'):
+        if not path.is_file():
+            continue
+        if path.name.startswith('~$'):
+            # skip temp Office files
+            continue
+        rel_path = path.relative_to(base_dir).as_posix()
+        parts = rel_path.split('/')
+        category = parts[0] if parts else '未分类'
+        item_dir = parts[1] if len(parts) > 1 else category
+        suffix = PurePosixPath(rel_path).suffix.lstrip('.').lower()
+
+        item_name = _strip_extension(item_dir)
+
+        raw_item_label = _strip_prefix(item_name)
+        item_label = _shorten_dash(raw_item_label)
+
+        stem_label = _shorten_dash(_strip_prefix(PurePosixPath(rel_path).stem))
+
+        def _extract_file_order() -> int:
+            stem = PurePosixPath(rel_path).stem
+            prefix_digits = ''.join(ch for ch in stem.split('_')[0] if ch.isdigit())
+            return int(prefix_digits) if prefix_digits else _extract_category_order(category)
+
+        entries.append(
+            {
+                'category': category,
+                'item_name': item_name,
+                'item_label': item_label,
+                'filename': rel_path,
+                'orig_name': path.name,
+                'label': stem_label,
+                'file_type': suffix,
+                'order': _extract_file_order(),
+                'uploaded_at': None,
+            }
+        )
+
+    entries.sort(key=lambda ent: (ent.get('order', 999), ent.get('category', ''), ent.get('filename', '')))
+    return entries
+
+
+def _write_material_entries(entries: list[dict]) -> Path:
+    materials_path = _materials_json_path()
+    materials_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with NamedTemporaryFile('w', delete=False, encoding='utf-8', dir=str(materials_path.parent)) as tmp:
+        json.dump(entries, tmp, ensure_ascii=False, indent=2)
+        tmp_path = Path(tmp.name)
+
+    tmp_path.replace(materials_path)
+    return materials_path
 
 class MaterialCategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = MaterialCategory.objects.all().prefetch_related(
@@ -537,6 +613,8 @@ class MaterialCatalogView(APIView):
         latest_order = -1
         latest_label: Optional[str] = None
 
+        handbook_attachment = None
+
         for entry in entries:
             try:
                 attachment = _build_attachment_payload(entry, request)
@@ -546,6 +624,10 @@ class MaterialCatalogView(APIView):
 
             category = attachment['category']
             order = attachment['category_order']
+
+            if category == HANDBOOK_CATEGORY:
+                handbook_attachment = attachment
+                continue
 
             if category in BOOK_CATEGORIES:
                 books.append(attachment)
@@ -598,6 +680,22 @@ class MaterialCatalogView(APIView):
                 'experiments': experiment_list,
                 'videos': videos,
                 'books': books,
+                'handbook_download_url': handbook_attachment.get('download_url') if handbook_attachment else None,
+            }
+        )
+
+
+class MaterialCatalogRebuildView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        entries = _scan_material_entries()
+        target_path = _write_material_entries(entries)
+        return Response(
+            {
+                'detail': 'materials.json rebuilt successfully',
+                'count': len(entries),
+                'path': str(target_path),
             }
         )
 

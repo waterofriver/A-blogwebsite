@@ -5,6 +5,7 @@ from .views import (
     MaterialItemViewSet,
     AttachmentViewSet,
     MaterialCatalogView,
+    MaterialCatalogRebuildView,
     MaterialFilePreviewView,
     MaterialFileDownloadView,
     MaterialFileHtmlPreviewView,
@@ -24,6 +25,7 @@ urlpatterns = [
 
     # 数据聚合与静态资源代理
     path('catalog/', MaterialCatalogView.as_view(), name='material-catalog'),
+    path('rebuild/', MaterialCatalogRebuildView.as_view(), name='material-rebuild'),
     path('assets/preview/', MaterialFilePreviewView.as_view(), name='material-file-preview'),
     path('assets/preview/pdf/', MaterialFilePdfPreviewView.as_view(), name='material-file-pdf-preview'),
     path('assets/preview/html/', MaterialFileHtmlPreviewView.as_view(), name='material-file-html-preview'),
