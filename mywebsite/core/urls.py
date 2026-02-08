@@ -35,10 +35,10 @@ urlpatterns = [
     path('api/auth/logout/', views.api_logout, name='api_auth_logout'),
     path('api/auth/register/', views.api_register, name='api_auth_register'),
 
-    # admin actions
-    path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
-    path('admin/blog/<int:blog_id>/<str:action>/', views.admin_blog_action, name='admin_blog_action'),
-    path('admin/user/<int:user_id>/make_admin/', views.make_admin, name='make_admin'),
-    path('admin/user/<int:user_id>/remove_admin/', views.remove_admin, name='remove_admin'),
-    path('admin/transfer_root/<int:user_id>/', views.transfer_root, name='transfer_root'),
+    # admin actions (use /dashboard/ prefix to avoid conflict with Django admin /admin/)
+    path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('dashboard/blog/<int:blog_id>/<str:action>/', views.admin_blog_action, name='admin_blog_action'),
+    path('dashboard/user/<int:user_id>/make_admin/', views.make_admin, name='make_admin'),
+    path('dashboard/user/<int:user_id>/remove_admin/', views.remove_admin, name='remove_admin'),
+    path('dashboard/transfer_root/<int:user_id>/', views.transfer_root, name='transfer_root'),
 ]
