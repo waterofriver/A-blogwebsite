@@ -371,80 +371,324 @@ const initialCommunityPosts = [
   },
 ]
 
-// Coze自动化出题组件
-function CozeQuizModule() {
-  const [cozeReady, setCozeReady] = useState(false);
-  const [cozeError, setCozeError] = useState<string | null>(null);
+// ===================== 全局类型声明（避免 TypeScript 报错）=====================
+declare global {
+  interface Window {
+    CozeWebSDK?: {
+      AppWebSDK: new (config: any) => any;
+    };
+    KJUR?: {
+      jws: {
+        JWS: {
+          sign: (alg: string, header: string, payload: string, key: string) => string;
+        };
+      };
+    };
+  }
+}
 
-  useEffect(() => {
-    // 加载Coze SDK脚本
-    const script = document.createElement('script');
-    script.src = 'https://lf-cdn.coze.cn/obj/unpkg/flow-platform/builder-web-sdk/0.1.1-beta.1/dist/umd/index.js';
-    script.async = true;
-    
+// ===================== Coze JWT 配置（请替换为你的真实信息）=====================
+const COZE_JWT_CONFIG = {
+  // Coze后台 → 开发者设置 → 应用ID
+  appId: "1146196662254",
+  // Coze后台 → 开发者设置 → 接口凭证 → 公钥
+  publicKey: "-CSCxkFPQiXll0uBE-TxeIgCZSPpyx-Wtox_o65YvkI",
+  // Coze后台生成的RSA私钥（保持格式完整，不要删除首尾标识）
+  privateKey: `-----BEGIN PRIVATE KEY-----
+MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCbRHNHJ5+yh11K
+gfivaNNv1J1amgXtRwBuiJ27dbftS93LlUOU1ex+yUCCls8+Za1hMAUydsgd5Fun
+YnnsEijnwPOnz1xGH78RTE7u5fx9s9le5AkAgcDSW5a1q7CCposOFmtpAdtyWGpW
+B5QmpWPG8V0Hk6SC99vDCBc6ZRMWUf6sxhyWjWf5F5TXZQYbXpcFhZg1uuZomV3s
+fr4ffKD5Mc+eh8TAz4aGYezUX67oZHrS0uEEARzuWFwJkwZdRfva7rpzFnw6YuLM
+OT0IbnLM1NeRuGqxnv5SbFeX9EnilLamq5TXcQNEJjuY2654+ahkrXydmAlgoQtg
+A/moiso3AgMBAAECggEAANP0+3c9a1I1iRyp7eWv/0V1m9REhpwkWZZiBJ9ISRap
+XZq+vYTcFpSXZQ2mU/i9KhY8aDgCbVKXwXyUU4bhnDn2t8cayG2PDn5IwDdxdvQH
+bJjQZONfA+OQWtxvk9LiXo6rLoHCny4ATjOMqiEUOQDLJIfY4Xj5fIrUk3BjJBNr
+vozrnlxwb7rhpStFHuKxxgsuyg1l2RjB5q/2Nkkf5Smp2ZNv9R+0tzybSqbKT/Sl
+jWxih1jiO46uVVajGkuL6a6T58Y+7JZUymkeagTTvWVQ9eForoAx3ONcEMQjF3r4
+A5noLVRaCWMz0NlOg5MdEyn2++QJw+1XFCYPKBZixQKBgQDLfg4S6+7AEEMg8i8i
+IIt2Jt0KODHtDFW4Q2wAY1YJ+oEHrAd7CdeqFBth+ZwjNqhvgbk62RLimupBCKcE
+yVRkAO4uesEGFfzwTwVabab7DlGuh/IYb1tMgLibsqjvnBgSZOnxruY3f+hruxCZ
+rr6rDaetS7vVpt+9ExvgmGQQ/QKBgQDDVNTakEyQvrh/ezFA/XSm7x5cTI9miTGV
+oRElCTInSI9ZTSYiArvaO3ECJ+hhIAAtpUUbzuVkxJib3bBzWHwYJAxiTLfU6FCG
+UT0vUSOuAMorcrmPHsTDjxV7kMImsoFoPFg9+BsOWqy293vWvlzf2F5NtsHm89h9
+F8j3ZB84QwKBgFi0Ij5tSi2+6QQ7jgA6X5CpcEE8Lcc/UT55ZWLl6mN/Jy/I9ZnU
+uIYTLbyPqlhPQy0YRz430dul2+dtdiDIAll1bl4kdG/Kte+rApJgqiFWJJUH/ahZ
+Ils+4To9rxaD3JpoEvKfYwteXlpXuOzFF6hI04bfNIn1rCInakeFJlmhAoGAT5f0
+uC8Ok/izU3cOhe4Bp7hORcwIrv5+jvs38kCCCFHf38K5JCi7BV0tWnSKk3EnwXHT
+7FXtUZdunCzEpuvKfUfLKA8c5YvYrDLUXMCSamf1+ahhBnnCMfHPDi/ZfU1FwAS+
+7Fl6JOo78L593u5pB+mx27b54jNA5xBXGr/YnOMCgYA8Udn852lK1E9NPPq8c3R1
+yi1jjpqRpPDGQS2fa7iwgrLUO/FQWpKaRpyxtXNtNyMs1m3PMt/7epl2Bwj+PUjl
+3r9nBz2pmycyoMdsgse2/ENaO6aiZipoLFQ3wBZQLtOuk9ytwBHU5ylC1OemoIfU
+Sm5BqKFgA1FvwP7yx5JhNA==
+-----END PRIVATE KEY-----`,
+  // Coze后台 → 机器人设置 → 机器人ID（原appId）
+  botId: "7560276108453675054",
+};
+
+// ===================== 核心隔离逻辑：生成用户唯一ID =====================
+/**
+ * 获取用户唯一标识（会话隔离的根）
+ * - 优先使用业务登录用户ID
+ * - 无登录态时生成访客ID并持久化到localStorage
+ */
+function getUserUid(): string {
+  // 1. 优先读取业务登录用户ID（你系统的登录态key，可自定义）
+  const loggedUserId = localStorage.getItem("website_user_id");
+  if (loggedUserId) return loggedUserId;
+
+  // 2. 无登录态时生成/读取持久化访客ID
+  let visitorId = localStorage.getItem("coze_quiz_visitor_id");
+  if (!visitorId) {
+    visitorId = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem("coze_quiz_visitor_id", visitorId);
+  }
+  return visitorId;
+}
+
+// ===================== JWT 核心函数 =====================
+/**
+ * 加载 JWT 加密库（jsrsasign）
+ */
+function loadJwtLibrary(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.KJUR && window.KJUR.jws && window.KJUR.jws.JWS) {
+      resolve();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/8.0.20/jsrsasign-all-min.js";
+    script.type = "text/javascript";
+    script.crossOrigin = "anonymous";
+
     script.onload = () => {
-      try {
-        if (typeof (window as any).CozeWebSDK === 'undefined') {
-          setCozeError('无法加载 Coze Web SDK');
-          return;
-        }
-
-        // 初始化Coze SDK
-        const sdk = new (window as any).CozeWebSDK.AppWebSDK({
-          token: 'sat_HfbccJtVnVNSq2yPhKVMuHWf9KQ87UCGjvdzgBY5TJIAHNX1jfE6AoNUpSAN0Jqo',
-          appId: '7560276108453675054',
-          container: '#coze-quiz-container',
-          userInfo: {
-            id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            nickname: '学习用户',
-            avatarUrl: 'https://lf-coze-web-cdn.coze.cn/obj/eden-cn/lm-lgvj/ljhwZthlaukjlkulzlp/coze/coze-logo.png',
-          },
-          ui: {
-            className: 'coze-quiz-theme',
-          },
-          onReady: function() {
-            console.log('Coze 自动化出题模块初始化成功');
-            setCozeReady(true);
-          },
-          onError: function(error: any) {
-            console.error('Coze 自动化出题模块初始化失败:', error);
-            setCozeError(`初始化失败: ${error.message || '未知错误'}`);
-          }
-        });
-
-        // 保存SDK实例以便后续使用
-        (window as any).cozeQuizSDK = sdk;
-      } catch (error: any) {
-        console.error('Coze SDK 初始化过程中发生错误:', error);
-        setCozeError(`初始化错误: ${error.message}`);
+      if (window.KJUR && window.KJUR.jws && window.KJUR.jws.JWS) {
+        resolve();
+      } else {
+        reject(new Error("JWT库加载成功但初始化失败"));
       }
     };
 
     script.onerror = () => {
-      setCozeError('无法加载 Coze SDK 脚本');
+      reject(new Error("JWT库加载失败，请检查网络或CDN链接"));
     };
 
     document.head.appendChild(script);
+  });
+}
 
-    return () => {
-      // 清理脚本
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
+/**
+ * 生成绑定用户ID的Coze JWT
+ * @param userUid 用户唯一标识
+ */
+function generateCozeJwt(userUid: string): string {
+  if (!window.KJUR) throw new Error("JWT库未加载");
+
+  // JWT头部：指定RS256算法+公钥ID
+  const header = {
+    alg: "RS256",
+    typ: "JWT",
+    kid: COZE_JWT_CONFIG.publicKey,
+  };
+
+  // JWT载荷：绑定用户ID+有效期（1小时）
+  const currentTime = Math.floor(Date.now() / 1000);
+  const payload = {
+    iss: COZE_JWT_CONFIG.appId,       // 签发方（你的应用ID）
+    aud: "api.coze.cn",               // 接收方（固定值）
+    jti: Math.random().toString(36).substr(2, 32) + Date.now(), // 唯一ID
+    iat: currentTime,                 // 签发时间
+    exp: currentTime + 3600,          // 过期时间
+    session_name: userUid,            // 核心：绑定用户ID，服务端隔离标识
+  };
+
+  // 用私钥签名生成JWT
+  return window.KJUR.jws.JWS.sign(
+    header.alg,
+    JSON.stringify(header),
+    JSON.stringify(payload),
+    COZE_JWT_CONFIG.privateKey
+  );
+}
+
+/**
+ * 用JWT换取Coze Access Token（短期有效，用户专属）
+ * @param jwt 签名后的JWT
+ */
+async function getCozeAccessToken(jwt: string): Promise<string> {
+  try {
+    const response = await fetch("https://api.coze.cn/api/permission/oauth2/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({
+        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        duration_seconds: 900, // Token有效期15分钟（建议不超过3600）
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`获取Token失败 [${response.status}]：${errorData.msg || "未知错误"}`);
+    }
+
+    const data = await response.json();
+    if (!data.access_token) throw new Error("返回数据中无access_token");
+    return data.access_token;
+  } catch (error) {
+    console.error("获取Coze Access Token失败：", error);
+    throw error;
+  }
+}
+
+// ===================== 原有组件逻辑（集成JWT+隔离）=====================
+function CozeQuizModule() {
+  const [cozeReady, setCozeReady] = useState(false);
+  const [cozeError, setCozeError] = useState<string | null>(null);
+  const [userUid, setUserUid] = useState<string>(""); // 存储用户唯一ID
+
+  useEffect(() => {
+    // 核心初始化函数（集成JWT+SDK）
+    const initCozeWithJWT = async () => {
+      try {
+        // 步骤1：生成用户唯一ID（隔离根标识）
+        const uid = getUserUid();
+        setUserUid(uid);
+        console.log("【会话隔离】当前用户ID：", uid);
+
+        // 步骤2：加载JWT加密库
+        await loadJwtLibrary();
+        console.log("✅ JWT库加载成功");
+
+        // 步骤3：生成绑定用户ID的JWT
+        const jwt = generateCozeJwt(uid);
+        console.log("✅ JWT生成成功：", jwt.substring(0, 50) + "...");
+
+        // 步骤4：换取用户专属Access Token
+        const accessToken = await getCozeAccessToken(jwt);
+        console.log("✅ Access Token获取成功：", accessToken.substring(0, 50) + "...");
+
+        // 步骤5：销毁旧SDK实例（避免多实例串号）
+        if ((window as any).cozeQuizSDK) {
+          try {
+            (window as any).cozeQuizSDK.destroy?.();
+          } catch (e) {
+            console.warn("销毁旧SDK实例失败：", e);
+          }
+          (window as any).cozeQuizSDK = null;
+        }
+
+        // 步骤6：加载Coze SDK脚本
+        const script = document.createElement('script');
+        script.src = 'https://lf-cdn.coze.cn/obj/unpkg/flow-platform/builder-web-sdk/0.1.1-beta.1/dist/umd/index.js';
+        script.async = true;
+
+        script.onload = () => {
+          try {
+            if (typeof (window as any).CozeWebSDK === 'undefined') {
+              setCozeError('无法加载 Coze Web SDK');
+              return;
+            }
+
+            // 步骤7：初始化Coze SDK（核心：JWT Token + 隔离配置）
+            const sdk = new (window as any).CozeWebSDK.AppWebSDK({
+              token: accessToken, // 替换原固定Token为JWT生成的用户专属Token
+              appId: COZE_JWT_CONFIG.botId, // 机器人ID
+              container: '#coze-quiz-container',
+              // 隔离配置1：userInfo绑定用户唯一ID
+              userInfo: {
+                id: uid,
+                nickname: uid.startsWith("visitor_") 
+                  ? `访客${uid.slice(-6)}` 
+                  : `用户${uid.slice(-4)}`,
+                avatarUrl: 'https://lf-coze-web-cdn.coze.cn/obj/eden-cn/lm-lgvj/ljhwZthlaukjlkulzlp/coze/coze-logo.png',
+              },
+              // 隔离配置2：服务端会话隔离（绑定用户ID）
+              context: {
+                sessionId: uid, // 服务端会话唯一标识 = 用户ID
+              },
+              // 隔离配置3：本地缓存隔离（绑定用户ID）
+              session: {
+                persist: true, // 持久化会话（刷新保留自己的聊天记录）
+                key: `coze_quiz_session_${uid}`, // 本地存储键 = 用户ID
+                autoRestore: true, // 自动恢复当前用户的会话
+              },
+              ui: {
+                className: 'coze-quiz-theme',
+              },
+              onReady: function() {
+                console.log('✅ Coze 自动化出题模块初始化成功（JWT+会话隔离生效）');
+                setCozeReady(true);
+              },
+              onError: function(error: any) {
+                console.error('❌ Coze 自动化出题模块初始化失败:', error);
+                setCozeError(`初始化失败: ${error.message || '未知错误'}`);
+              },
+              // 隔离配置4：Token过期自动刷新（保持隔离不中断）
+              onTokenExpired: async () => {
+                try {
+                  const newJwt = generateCozeJwt(uid);
+                  const newToken = await getCozeAccessToken(newJwt);
+                  sdk.updateToken(newToken); // 更新Token
+                  console.log("✅ Token已刷新，会话隔离继续生效");
+                } catch (e) {
+                  console.error("❌ Token刷新失败：", e);
+                  setCozeError("Token过期，刷新页面重试");
+                }
+              }
+            });
+
+            // 保存SDK实例
+            (window as any).cozeQuizSDK = sdk;
+          } catch (error: any) {
+            console.error('❌ Coze SDK 初始化过程中发生错误:', error);
+            setCozeError(`初始化错误: ${error.message}`);
+          }
+        };
+
+        script.onerror = () => {
+          setCozeError('无法加载 Coze SDK 脚本');
+        };
+
+        document.head.appendChild(script);
+
+        // 组件卸载清理
+        return () => {
+          // 销毁SDK实例
+          if ((window as any).cozeQuizSDK) {
+            (window as any).cozeQuizSDK.destroy?.();
+            (window as any).cozeQuizSDK = null;
+          }
+          // 移除脚本
+          if (script.parentNode) {
+            script.parentNode.removeChild(script);
+          }
+        };
+      } catch (error: any) {
+        console.error('❌ JWT/Token 处理失败:', error);
+        setCozeError(`认证失败: ${error.message}`);
       }
     };
+
+    // 执行初始化
+    initCozeWithJWT();
   }, []);
 
+  // ===================== 原有UI结构（完全保留，仅微调提示）=====================
   return (
-    <div id="coze-quiz-module" className="space-y-4 h-full">
+    <div className="space-y-4 h-full">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-semibold">AI 智能出题助手</h3>
           <p className="text-sm text-muted-foreground">
-            与AI对话，获取个性化练习题和知识点讲解
+            与AI对话，获取个性化练习题和知识点讲解（JWT会话隔离）
           </p>
         </div>
         <Badge variant="outline" className="rounded-xl bg-blue-50 text-blue-600">
-          实验性功能
+          JWT隔离版
         </Badge>
       </div>
 
@@ -457,7 +701,7 @@ function CozeQuizModule() {
             <div>
               <h4 className="font-medium">Coze AI 学习助手</h4>
               <p className="text-xs text-muted-foreground">
-                基于大模型的智能出题与答疑系统
+                基于大模型的智能出题与答疑系统 | 用户ID: {userUid.slice(-6)}
               </p>
             </div>
           </div>
@@ -468,7 +712,7 @@ function CozeQuizModule() {
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
               <p className="text-sm text-muted-foreground">正在加载 AI 出题助手...</p>
-              <p className="text-xs text-muted-foreground mt-2">请稍候片刻</p>
+              <p className="text-xs text-muted-foreground mt-2">用户ID: {userUid || "生成中"}</p>
             </div>
           )}
 
@@ -496,12 +740,12 @@ function CozeQuizModule() {
               {cozeReady ? (
                 <span className="flex items-center gap-1 text-green-600">
                   <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
-                  AI 助手已就绪
+                  AI 助手已就绪（JWT隔离生效）
                 </span>
               ) : (
                 <span className="flex items-center gap-1">
                   <div className="h-2 w-2 rounded-full bg-gray-400"></div>
-                  正在初始化
+                  正在初始化（JWT认证中）
                 </span>
               )}
             </div>
@@ -564,6 +808,7 @@ function CozeQuizModule() {
   );
 }
 
+export default CozeQuizModule;
 // 侧边导航简化为四项（保留框架）
 type SidebarItem = {
   title: string
