@@ -707,6 +707,10 @@ def admin_blog_action(request, blog_id, action):
     elif action == 'delete':
         blog.delete()
         messages.success(request, '帖子已删除')
+        return redirect('admin_dashboard')
+    else:
+        messages.error(request, '无效操作')
+        return redirect('admin_dashboard')
 
     blog.save()
     return redirect('admin_dashboard')
