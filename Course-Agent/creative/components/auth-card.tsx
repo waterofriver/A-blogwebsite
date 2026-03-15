@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import axios from "axios"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -75,6 +76,13 @@ export function AuthCard() {
         setMessage({ text: data.detail || data.message || "昵称设置失败，请重试", tone: "error" })
       }
     } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const detail = (error.response?.data as any)?.detail || (error.response?.data as any)?.message
+        if (detail) {
+          setMessage({ text: String(detail), tone: "error" })
+          return
+        }
+      }
       setMessage({ text: "网络异常，请稍后再试", tone: "error" })
     } finally {
       setLoading(false)
@@ -106,6 +114,13 @@ export function AuthCard() {
         setMessage({ text: data.detail || data.message || "验证失败，请检查账号或密码", tone: "error" })
       }
     } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const detail = (error.response?.data as any)?.detail || (error.response?.data as any)?.message
+        if (detail) {
+          setMessage({ text: String(detail), tone: "error" })
+          return
+        }
+      }
       setMessage({ text: "网络异常，请稍后再试", tone: "error" })
     } finally {
       setLoading(false)
@@ -153,6 +168,13 @@ export function AuthCard() {
         setMessage({ text: data.detail || data.message || "注册失败，请稍后再试", tone: "error" })
       }
     } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const detail = (error.response?.data as any)?.detail || (error.response?.data as any)?.message
+        if (detail) {
+          setMessage({ text: String(detail), tone: "error" })
+          return
+        }
+      }
       setMessage({ text: "网络异常，请稍后再试", tone: "error" })
     } finally {
       setLoading(false)

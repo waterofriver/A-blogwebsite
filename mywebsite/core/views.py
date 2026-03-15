@@ -42,16 +42,21 @@ def api_login(request):
     """API login: accepts POST (form or JSON) with username & password. Sets session cookie on success."""
     if request.method != 'POST':
         return JsonResponse({'detail': 'method not allowed'}, status=405)
-    # support JSON or form
-    username = request.POST.get('username')
+    # support JSON or form; tolerate multiple field names for compatibility
+    username = request.POST.get('username') or request.POST.get('email') or request.POST.get('identifier')
     password = request.POST.get('password')
-    if not username:
+    if not username or not password:
         try:
             data = json.loads(request.body.decode('utf-8') or '{}')
-            username = data.get('username')
-            password = data.get('password')
+            username = username or data.get('username') or data.get('email') or data.get('identifier')
+            password = password or data.get('password')
         except Exception:
             pass
+
+    username = (username or '').strip()
+    password = password or ''
+    if not username or not password:
+        return JsonResponse({'success': False, 'detail': 'username/email and password required'}, status=400)
 
     # allow login with email as well
     user = None
@@ -88,6 +93,8 @@ def api_register(request):
     email = request.POST.get('email')
     password = request.POST.get('password')
     nickname = request.POST.get('nickname')
+    security_question = request.POST.get('security_question')
+    security_answer = request.POST.get('security_answer')
     if not username:
         try:
             data = json.loads(request.body.decode('utf-8') or '{}')
@@ -95,8 +102,17 @@ def api_register(request):
             email = data.get('email')
             password = data.get('password')
             nickname = data.get('nickname')
+            security_question = data.get('security_question')
+            security_answer = data.get('security_answer')
         except Exception:
             pass
+
+    username = (username or '').strip()
+    email = (email or '').strip()
+    password = password or ''
+    nickname = (nickname or '').strip()
+    security_question = (security_question or '').strip()
+    security_answer = (security_answer or '').strip()
 
     if not username or not password:
         return JsonResponse({'success': False, 'detail': 'username and password required'}, status=400)
@@ -110,6 +126,10 @@ def api_register(request):
     if nickname:
         user.nickname = nickname
         user.has_set_nickname = True
+    # Backward compatibility: allow old clients that do not submit security fields.
+    user.security_question = security_question or '默认安全问题'
+    from django.contrib.auth.hashers import make_password
+    user.security_answer_hash = make_password(security_answer or 'default_answer')
     user.save()
 
     # auto-login
