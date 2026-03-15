@@ -562,8 +562,8 @@ def api_blogs(request):
     else:
         is_public = bool(raw_is_public)
 
-    # Non-admin posts must go through moderation before being publicly visible.
-    is_approved = bool(getattr(request.user, 'is_admin', False))
+    # In the dynamic forum API, all new posts must be moderated first.
+    is_approved = False
 
     blog = Blog.objects.create(
         author=request.user,

@@ -29,7 +29,7 @@ class Blog(models.Model):
 	is_public = models.BooleanField(default=True)
 	likes_count = models.IntegerField(default=0)
 	views_count = models.IntegerField(default=0)
-	is_approved = models.BooleanField(default=True)
+	is_approved = models.BooleanField(default=False)
 	is_pinned = models.BooleanField(default=False)
 	is_featured = models.BooleanField(default=False)
 
