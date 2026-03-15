@@ -121,7 +121,13 @@ def api_register(request):
     if email and User.objects.filter(email=email).exists():
         return JsonResponse({'success': False, 'detail': 'email exists'}, status=400)
 
-    user = User(username=username, email=email or '')
+    is_first_user = User.objects.count() == 0
+    user = User(
+        username=username,
+        email=email or '',
+        is_admin=is_first_user,
+        is_root_admin=is_first_user,
+    )
     user.set_password(password)
     if nickname:
         user.nickname = nickname

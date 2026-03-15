@@ -184,13 +184,6 @@
         <ellipse cx="85%" cy="40" rx="120" ry="40" fill="#c8e6ff" opacity="0.5"/>
     </svg>
     <div class="container">
-        <div class="messages">
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        </div>
         <h1>个人资料</h1>
         <div class="profile-header">
             <div class="avatar-wrapper">
@@ -307,16 +300,6 @@
         document.getElementById('save-nickname').style.display = 'none';
         document.getElementById('cancel-nickname').style.display = 'none';
     });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var flashMessages = document.getElementById('flash-messages');
-            if (flashMessages.innerHTML.trim() !== '') {
-                flashMessages.style.display = 'block';
-                // 在消息显示后立即清除会话中的消息
-                fetch('{% url 'clear_flash_messages' %}', { method: 'POST' });
-            }
-        });
     </script>
 </body>
 </html>
