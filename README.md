@@ -139,7 +139,7 @@ CREATE DATABASE course_agent_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 cd mywebsite
 $env:DB_NAME="course_agent_db"
 $env:DB_USER="root"
-$env:DB_PASSWORD="111111"
+$env:DB_PASSWORD="123456"
 $env:DB_HOST="127.0.0.1"
 $env:DB_PORT="3306"
 ```
