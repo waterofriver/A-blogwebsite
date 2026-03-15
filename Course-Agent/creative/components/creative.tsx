@@ -1728,7 +1728,17 @@ export function DesignaliCreative() {
                   <section className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h2 className="text-2xl font-semibold">社区精选</h2>
-                      <Button variant="ghost" className="rounded-2xl">
+                      <Button
+                        variant="ghost"
+                        className="rounded-2xl"
+                        onClick={() => {
+                          setActiveTab('apps')
+                          requestAnimationFrame(() => {
+                            const el = document.getElementById('dynamic-forum-section')
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          })
+                        }}
+                      >
                         去逛逛
                       </Button>
                     </div>
@@ -1819,7 +1829,7 @@ export function DesignaliCreative() {
                     </motion.div>
                   </section>
 
-                  <section className="space-y-4">
+                  <section id="dynamic-forum-section" className="space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <h2 className="text-2xl font-semibold">论坛动态</h2>
