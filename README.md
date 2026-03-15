@@ -138,10 +138,25 @@ CREATE DATABASE course_agent_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 ```powershell
 cd mywebsite
 $env:DB_NAME="course_agent_db"
-$env:DB_USER="root"
-$env:DB_PASSWORD="123456"
+$env:DB_USER="course_agent"
+$env:DB_PASSWORD="course_agent_123"
 $env:DB_HOST="127.0.0.1"
 $env:DB_PORT="3306"
+```
+
+如果出现错误 `Authentication plugin 'auth_gssapi_client' not configured`，请不要使用 root 直连，改为创建专用账号（MariaDB 控制台执行）：
+
+```sql
+CREATE USER IF NOT EXISTS 'course_agent'@'127.0.0.1' IDENTIFIED BY 'course_agent_123';
+GRANT ALL PRIVILEGES ON course_agent_db.* TO 'course_agent'@'127.0.0.1';
+FLUSH PRIVILEGES;
+```
+
+若你必须继续使用 root，则可改 root 认证插件后再连接（执行前请确认数据库版本与安全策略）：
+
+```sql
+ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('123456');
+FLUSH PRIVILEGES;
 ```
 
 安装依赖并执行迁移：

@@ -120,8 +120,9 @@ else:
         'default': {
             'ENGINE': 'django.db.backends.mysql',
             'NAME': os.environ.get('DB_NAME', 'course_agent_db'),
-            'USER': os.environ.get('DB_USER', 'root'),
-            'PASSWORD': os.environ.get('DB_PASSWORD', '111111'),
+            # 建议使用业务专用账号，避免 root 账号认证插件不兼容（如 auth_gssapi_client）
+            'USER': os.environ.get('DB_USER', 'course_agent'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', 'course_agent_123'),
             'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
             'PORT': os.environ.get('DB_PORT', '3306'),
             'OPTIONS': {
