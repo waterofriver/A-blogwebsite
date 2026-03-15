@@ -908,6 +908,7 @@ export function DesignaliCreative() {
   const [forumLoadingDetail, setForumLoadingDetail] = useState(false)
   const [forumError, setForumError] = useState<string | null>(null)
   const [forumNotice, setForumNotice] = useState<string | null>(null)
+  const [forumDetailOpen, setForumDetailOpen] = useState(false)
   const [forumCreateOpen, setForumCreateOpen] = useState(false)
   const [forumCreateForm, setForumCreateForm] = useState({ title: "", content: "" })
   const [forumCreating, setForumCreating] = useState(false)
@@ -1902,8 +1903,8 @@ export function DesignaliCreative() {
                       </Card>
                     )}
 
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                      <Card className="lg:col-span-2 rounded-3xl">
+                    <div className="space-y-4">
+                      <Card className="rounded-3xl">
                         <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Eye className="h-4 w-4" />
@@ -1936,7 +1937,10 @@ export function DesignaliCreative() {
                             return (
                               <button
                                 key={post.id}
-                                onClick={() => loadForumDetail(post.id)}
+                                onClick={() => {
+                                  loadForumDetail(post.id)
+                                  setForumDetailOpen(true)
+                                }}
                                 className={cn(
                                   'w-full rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm',
                                   isActive ? 'border-primary/60 bg-primary/5' : 'border-muted'
@@ -1963,123 +1967,25 @@ export function DesignaliCreative() {
                           })}
                         </CardContent>
                       </Card>
-
-                      <Card className="rounded-3xl">
-                        <CardHeader>
-                          <CardTitle>帖子详情</CardTitle>
-                          <CardDescription>{forumSelected ? '查看并互动' : '点击左侧列表中的帖子以查看详情'}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {forumLoadingDetail && (
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              详情加载中...
-                            </div>
-                          )}
-
-                          {!forumLoadingDetail && !forumSelected && (
-                            <div className="rounded-2xl border border-dashed p-6 text-center text-muted-foreground">
-                              请选择一个帖子查看内容。
-                            </div>
-                          )}
-
-                          {forumSelected && (
-                            <div className="space-y-3">
-                              <div className="flex items-start justify-between gap-2">
-                                <div>
-                                  <h3 className="text-xl font-semibold leading-snug">{forumSelected.title}</h3>
-                                  <p className="text-sm text-muted-foreground">
-                                    {(forumSelected.author || '匿名用户')} · {formatDate(forumSelected.created_at)}
-                                  </p>
-                                </div>
-                                <div className="flex flex-wrap gap-1">
-                                  {forumSelected.is_pinned && <Badge className="rounded-xl">置顶</Badge>}
-                                  {forumSelected.is_featured && <Badge variant="secondary" className="rounded-xl">加精</Badge>}
-                                </div>
-                              </div>
-
-                              <div className="rounded-2xl bg-muted/50 p-3 text-sm leading-relaxed whitespace-pre-wrap">
-                                {forumSelected.content || '暂无内容'}
-                              </div>
-
-                              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                <Badge variant="outline" className="rounded-xl">浏览 {forumSelected.views_count || 0}</Badge>
-                                <Badge variant="outline" className="rounded-xl">点赞 {forumSelected.likes_count || 0}</Badge>
-                                <Badge variant="outline" className="rounded-xl">评论 {(forumSelected.comments || []).length}</Badge>
-                              </div>
-
-                              <div className="flex flex-wrap gap-2">
-                                <Button
-                                  variant={forumSelected?.liked ? 'default' : 'outline'}
-                                  className="rounded-2xl"
-                                  onClick={handleToggleLike}
-                                  disabled={forumLoadingDetail}
-                                >
-                                  <Heart className={cn('mr-2 h-4 w-4', forumSelected?.liked ? 'fill-current text-red-500' : '')} />
-                                  {forumSelected?.liked ? '已点赞' : '点赞'}
-                                </Button>
-                                <Button variant="outline" className="rounded-2xl" onClick={() => loadForumDetail(forumSelected.id)} disabled={forumLoadingDetail}>
-                                  <RefreshCw className="mr-2 h-4 w-4" />
-                                  刷新
-                                </Button>
-                                {(me?.is_admin || me?.is_root_admin) && (
-                                  <Button variant="ghost" className="rounded-2xl" onClick={() => (window.location.href = '/admin/dashboard/')}>后台管理</Button>
-                                )}
-                              </div>
-
-                              <div className="space-y-3">
-                                <div className="flex items-start gap-2">
-                                  <textarea
-                                    className="flex-1 rounded-2xl border px-3 py-2 text-sm"
-                                    rows={3}
-                                    placeholder="写下你的评论..."
-                                    value={forumCommentText}
-                                    onChange={(e) => setForumCommentText(e.target.value)}
-                                  />
-                                  <Button className="rounded-2xl" onClick={handleSubmitComment} disabled={forumCommenting || forumLoadingDetail}>
-                                    {forumCommenting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                                    发表评论
-                                  </Button>
-                                </div>
-                                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                                  {forumSelected.comments && forumSelected.comments.length > 0 ? (
-                                    forumSelected.comments.map((c) => (
-                                      <div key={c.id} className="rounded-2xl border p-3">
-                                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                          <span>{c.author || '用户'}</span>
-                                          <span>{formatDate(c.created_at)}</span>
-                                        </div>
-                                        <p className="mt-1 text-sm text-foreground whitespace-pre-wrap">{c.content}</p>
-                                      </div>
-                                    ))
-                                  ) : (
-                                    <p className="text-sm text-muted-foreground">暂无评论</p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
                     </div>
                   </section>
 
                   <Dialog open={forumCreateOpen} onOpenChange={setForumCreateOpen}>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="w-[92vw] max-w-3xl border-slate-200 bg-white text-slate-900">
                       <DialogHeader>
                         <DialogTitle>发布帖子</DialogTitle>
-                        <DialogDescription>提交后将创建新的论坛帖子（需要已登录）。</DialogDescription>
+                        <DialogDescription className="text-slate-600">提交后将创建新的论坛帖子（需要已登录）。</DialogDescription>
                       </DialogHeader>
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         <div>
-                          <label className="text-sm text-muted-foreground">标题</label>
-                          <Input className="mt-1" value={forumCreateForm.title} onChange={(e) => setForumCreateForm((s) => ({ ...s, title: e.target.value }))} placeholder="请输入标题" />
+                          <label className="text-sm text-slate-700">标题</label>
+                          <Input className="mt-1 h-12 border-slate-300 bg-white px-4 text-base text-slate-900 placeholder:text-slate-400" value={forumCreateForm.title} onChange={(e) => setForumCreateForm((s) => ({ ...s, title: e.target.value }))} placeholder="请输入标题" />
                         </div>
                         <div>
-                          <label className="text-sm text-muted-foreground">内容</label>
+                          <label className="text-sm text-slate-700">内容</label>
                           <textarea
-                            className="mt-1 w-full rounded-2xl border px-3 py-2 text-sm"
-                            rows={6}
+                            className="mt-1 min-h-[320px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 placeholder:text-slate-400"
+                            rows={10}
                             value={forumCreateForm.content}
                             onChange={(e) => setForumCreateForm((s) => ({ ...s, content: e.target.value }))}
                             placeholder="输入正文，支持换行"
@@ -2093,6 +1999,106 @@ export function DesignaliCreative() {
                           发布
                         </Button>
                       </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
+                  <Dialog open={forumDetailOpen} onOpenChange={setForumDetailOpen}>
+                    <DialogContent className="w-[94vw] max-w-4xl border-slate-200 bg-white text-slate-900">
+                      <DialogHeader>
+                        <DialogTitle>帖子详情</DialogTitle>
+                        <DialogDescription className="text-slate-600">沉浸阅读模式</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        {forumLoadingDetail && (
+                          <div className="flex items-center gap-2 text-slate-600">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            详情加载中...
+                          </div>
+                        )}
+
+                        {!forumLoadingDetail && !forumSelected && (
+                          <div className="rounded-2xl border border-dashed p-6 text-center text-slate-500">
+                            请选择一个帖子查看内容。
+                          </div>
+                        )}
+
+                        {forumSelected && (
+                          <div className="space-y-4">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <h3 className="text-2xl font-semibold leading-snug text-slate-900">{forumSelected.title}</h3>
+                                <p className="text-sm text-slate-600">
+                                  {(forumSelected.author || '匿名用户')} · {formatDate(forumSelected.created_at)}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {forumSelected.is_pinned && <Badge className="rounded-xl">置顶</Badge>}
+                                {forumSelected.is_featured && <Badge variant="secondary" className="rounded-xl">加精</Badge>}
+                              </div>
+                            </div>
+
+                            <div className="min-h-[220px] rounded-2xl border border-slate-200 bg-white p-4 text-base leading-relaxed whitespace-pre-wrap text-slate-800">
+                              {forumSelected.content || '暂无内容'}
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 text-xs text-slate-600">
+                              <Badge variant="outline" className="rounded-xl">浏览 {forumSelected.views_count || 0}</Badge>
+                              <Badge variant="outline" className="rounded-xl">点赞 {forumSelected.likes_count || 0}</Badge>
+                              <Badge variant="outline" className="rounded-xl">评论 {(forumSelected.comments || []).length}</Badge>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                variant={forumSelected?.liked ? 'default' : 'outline'}
+                                className="rounded-2xl"
+                                onClick={handleToggleLike}
+                                disabled={forumLoadingDetail}
+                              >
+                                <Heart className={cn('mr-2 h-4 w-4', forumSelected?.liked ? 'fill-current text-red-500' : '')} />
+                                {forumSelected?.liked ? '已点赞' : '点赞'}
+                              </Button>
+                              <Button variant="outline" className="rounded-2xl" onClick={() => loadForumDetail(forumSelected.id)} disabled={forumLoadingDetail}>
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                刷新
+                              </Button>
+                              {(me?.is_admin || me?.is_root_admin) && (
+                                <Button variant="ghost" className="rounded-2xl" onClick={() => (window.location.href = '/admin/dashboard/')}>后台管理</Button>
+                              )}
+                            </div>
+
+                            <div className="space-y-3">
+                              <div className="flex items-start gap-2">
+                                <textarea
+                                  className="min-h-[96px] flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+                                  rows={4}
+                                  placeholder="写下你的评论..."
+                                  value={forumCommentText}
+                                  onChange={(e) => setForumCommentText(e.target.value)}
+                                />
+                                <Button className="rounded-2xl" onClick={handleSubmitComment} disabled={forumCommenting || forumLoadingDetail}>
+                                  {forumCommenting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                  发表评论
+                                </Button>
+                              </div>
+                              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                                {forumSelected.comments && forumSelected.comments.length > 0 ? (
+                                  forumSelected.comments.map((c) => (
+                                    <div key={c.id} className="rounded-2xl border border-slate-200 p-3">
+                                      <div className="flex items-center justify-between text-sm text-slate-500">
+                                        <span>{c.author || '用户'}</span>
+                                        <span>{formatDate(c.created_at)}</span>
+                                      </div>
+                                      <p className="mt-1 text-sm text-slate-800 whitespace-pre-wrap">{c.content}</p>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-sm text-slate-500">暂无评论</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </DialogContent>
                   </Dialog>
                 </TabsContent>
