@@ -555,11 +555,29 @@ def api_blogs(request):
     content = payload.get('content') or request.POST.get('content')
     if not title or not content:
         return JsonResponse({'detail': 'title and content required'}, status=400)
-    blog = Blog.objects.create(author=request.user, title=title, content=content)
+
+    raw_is_public = payload.get('is_public', request.POST.get('is_public', True))
+    if isinstance(raw_is_public, str):
+        is_public = raw_is_public.strip().lower() not in ('false', '0', 'no', 'off')
+    else:
+        is_public = bool(raw_is_public)
+
+    # Non-admin posts must go through moderation before being publicly visible.
+    is_approved = bool(getattr(request.user, 'is_admin', False))
+
+    blog = Blog.objects.create(
+        author=request.user,
+        title=title,
+        content=content,
+        is_public=is_public,
+        is_approved=is_approved,
+    )
     return JsonResponse({
         'id': blog.id,
         'title': blog.title,
         'content': blog.content,
+        'is_approved': blog.is_approved,
+        'is_public': blog.is_public,
         'created_at': blog.created_at.isoformat() if getattr(blog, 'created_at', None) else None,
     })
 

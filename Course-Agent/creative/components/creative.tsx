@@ -375,15 +375,9 @@ const initialCommunityPosts = [
 declare global {
   interface Window {
     CozeWebSDK?: {
-      AppWebSDK: new (config: any) => any;
+      WebChatClient: new (config: any) => any;
     };
-    KJUR?: {
-      jws: {
-        JWS: {
-          sign: (alg: string, header: string, payload: string, key: string) => string;
-        };
-      };
-    };
+    KJUR?: any;
   }
 }
 
@@ -897,6 +891,7 @@ export function DesignaliCreative() {
   const [forumSelected, setForumSelected] = useState<ForumDetail | null>(null)
   const [forumLoadingDetail, setForumLoadingDetail] = useState(false)
   const [forumError, setForumError] = useState<string | null>(null)
+  const [forumNotice, setForumNotice] = useState<string | null>(null)
   const [forumCreateOpen, setForumCreateOpen] = useState(false)
   const [forumCreateForm, setForumCreateForm] = useState({ title: "", content: "" })
   const [forumCreating, setForumCreating] = useState(false)
@@ -1026,6 +1021,8 @@ export function DesignaliCreative() {
       setForumError('请填写标题和内容')
       return
     }
+    setForumError(null)
+    setForumNotice(null)
     setForumCreating(true)
     try {
       const res = await fetch(`${API_BASE}/api/blogs/`, {
@@ -1040,8 +1037,14 @@ export function DesignaliCreative() {
       setForumCreateForm({ title: '', content: '' })
       setForumPage(1)
       setForumSelectedId(created.id)
+      if (created?.is_approved === false) {
+        setForumNotice('帖子已提交审核，审核通过后会显示在公开论坛。')
+      } else {
+        setForumNotice('帖子发布成功。')
+      }
       await loadForumList(1, created.id)
     } catch (err) {
+      setForumNotice(null)
       setForumError('创建帖子失败，可能需要登录')
     } finally {
       setForumCreating(false)
@@ -1083,6 +1086,14 @@ export function DesignaliCreative() {
   }, [API_BASE, forumSelectedId])
 
   const handleRefreshList = useCallback(() => loadForumList(forumPage, forumSelectedId || undefined), [forumPage, forumSelectedId, loadForumList])
+
+  useEffect(() => {
+    if (!forumNotice) return
+    const timer = window.setTimeout(() => {
+      setForumNotice(null)
+    }, 4000)
+    return () => window.clearTimeout(timer)
+  }, [forumNotice])
 
   const formatDate = (value?: string) => {
     if (!value) return ''
@@ -1838,6 +1849,15 @@ export function DesignaliCreative() {
                         </Button>
                       </div>
                     </div>
+
+                    {forumNotice && (
+                      <Card className="rounded-3xl border-emerald-200 bg-emerald-50/70 text-emerald-700">
+                        <CardContent className="flex items-center justify-between gap-3 p-4">
+                          <span>{forumNotice}</span>
+                          <Button variant="outline" size="sm" className="rounded-2xl" onClick={() => setForumNotice(null)}>关闭</Button>
+                        </CardContent>
+                      </Card>
+                    )}
 
                     {forumError && (
                       <Card className="rounded-3xl border-red-200 bg-red-50/60 text-red-700">
