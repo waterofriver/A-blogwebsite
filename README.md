@@ -255,7 +255,95 @@ python test_coze_script.py
 
 ---
 
-## 4. 代码规范与贡献
+## 4. 局域网部署指南（本地服务器）
+
+目标：将网站部署到一台局域网服务器，并让同一局域网内的主机都可以访问。
+
+### 4.1 服务器准备
+
+1. 给服务器设置固定内网 IP（示例：`192.168.81.100`）。
+2. 确认其他主机可 ping 通该 IP。
+3. 放行 Windows 防火墙端口（管理员 PowerShell）：
+
+```powershell
+New-NetFirewallRule -DisplayName "Django-8000" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow
+New-NetFirewallRule -DisplayName "Next-3000" -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow
+```
+
+### 4.2 Django 后端生产方式运行（推荐 Waitress）
+
+1. 在服务器上设置数据库连接环境变量：
+
+```powershell
+cd mywebsite
+$env:DB_NAME="course_agent_db"
+$env:DB_USER="course_agent"
+$env:DB_PASSWORD="course_agent_123"
+$env:DB_HOST="127.0.0.1"
+$env:DB_PORT="3306"
+```
+
+2. 确认 `mywebsite/mywebsite/settings.py` 中 `ALLOWED_HOSTS` 包含：
+  - 服务器内网 IP（如 `192.168.81.100`）
+  - `localhost`
+  - `127.0.0.1`
+
+3. 安装依赖并执行迁移与静态文件收集：
+
+```powershell
+cd mywebsite
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py collectstatic --noinput
+```
+
+4. 使用 Waitress 启动（不要用开发服务器 runserver）：
+
+```powershell
+cd mywebsite
+waitress-serve --listen=0.0.0.0:8000 mywebsite.wsgi:application
+```
+
+5. 局域网访问地址：
+  - `http://192.168.81.100:8000`（将 IP 换成你的服务器内网地址）
+
+### 4.3 Next.js 前端局域网访问（可选）
+
+如果你需要把新版前端也暴露在局域网：
+
+```powershell
+cd Course-Agent/creative
+pnpm install
+pnpm build
+pnpm start -H 0.0.0.0 -p 3000
+```
+
+然后确保前端环境变量使用服务器 IP，而不是 localhost：
+
+```bash
+NEXT_PUBLIC_BACKEND_URL=http://192.168.81.100:8000
+```
+
+局域网访问地址：
+- `http://192.168.81.100:3000`
+
+### 4.4 跨域与登录态注意事项
+
+1. `CORS_ALLOWED_ORIGINS` 需要包含前端实际访问地址，例如：
+  - `http://192.168.81.100:3000`
+2. 前后端不要混用 `localhost`、`127.0.0.1` 和局域网 IP。
+3. 同一环境中尽量固定使用一个主机名/IP，避免 session cookie 不一致。
+
+### 4.5 开机自启（推荐）
+
+可以使用 Windows 任务计划程序或 NSSM，将以下进程设为开机启动：
+
+1. Waitress（Django，端口 8000）
+2. Next.js（如果启用，端口 3000）
+
+---
+
+## 5. 代码规范与贡献
 
 - 前端（`Course-Agent/creative`）：
   - 使用 TypeScript
