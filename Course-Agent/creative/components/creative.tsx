@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Award,
@@ -863,6 +863,22 @@ interface ForumDetail extends ForumPost {
   liked?: boolean
 }
 
+function resolveApiBase(rawBase: string): string {
+  if (typeof window === 'undefined') return rawBase
+  try {
+    const url = new URL(rawBase)
+    const isLocalAlias = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
+    const pageHost = window.location.hostname
+    const pageIsLocalAlias = pageHost === 'localhost' || pageHost === '127.0.0.1'
+    if (isLocalAlias && pageIsLocalAlias && url.hostname !== pageHost) {
+      url.hostname = pageHost
+    }
+    return url.origin
+  } catch {
+    return rawBase
+  }
+}
+
 export function DesignaliCreative() {
   const [progress, setProgress] = useState(0)
   const [notifications, setNotifications] = useState(5)
@@ -903,7 +919,10 @@ export function DesignaliCreative() {
 
   const forumPageSize = 10
   const forumPageCount = Math.max(1, Math.ceil((forumTotal || 0) / forumPageSize))
-  const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000'
+  const API_BASE = useMemo(
+    () => resolveApiBase(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000'),
+    [],
+  )
 
   const fetchMe = useCallback(async () => {
     try {
@@ -1031,6 +1050,12 @@ export function DesignaliCreative() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(forumCreateForm),
       })
+      if (res.status === 401) {
+        // eslint-disable-next-line no-alert
+        alert('登录状态已失效，请先登录后再发布帖子。')
+        window.location.href = '/login'
+        return
+      }
       if (!res.ok) throw new Error('create failed')
       const created = await res.json()
       setForumCreateOpen(false)
@@ -1151,7 +1176,6 @@ export function DesignaliCreative() {
     if (!nicknameInput || savingNickname) return
     setSavingNickname(true)
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000'
       const form = new FormData()
       form.append('nickname', nicknameInput)
       form.append('bio', bioInput)
@@ -2372,12 +2396,16 @@ export function DesignaliCreative() {
 // 小组件：侧边栏左下角的用户徽章，包含读取 `/api/users/me/` 与内联编辑功能
 function UserBadge({ className }: { className?: string }) {
   const [me, setMe] = useState<any | null>(null)
+  const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ nickname: '', bio: '' })
   const fileRef: any = null
 
-  const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000'
+  const API_BASE = useMemo(
+    () => resolveApiBase(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000'),
+    [],
+  )
 
   useEffect(() => {
     let mounted = true
@@ -2389,6 +2417,9 @@ function UserBadge({ className }: { className?: string }) {
         setForm({ nickname: d.nickname || '', bio: d.bio || '' })
       })
       .catch(() => {})
+      .finally(() => {
+        if (mounted) setLoading(false)
+      })
     return () => {
       mounted = false
     }
@@ -2402,7 +2433,6 @@ function UserBadge({ className }: { className?: string }) {
       data.append('nickname', form.nickname)
       data.append('bio', form.bio)
       // file upload optional: keep API compatible
-      // @ts-ignore
       if (fileRef?.current?.files?.[0]) data.append('avatar', fileRef.current.files[0])
 
       const res = await fetch(`${API_BASE}/api/users/me/update/`, { method: 'POST', credentials: 'include', body: data })
@@ -2424,16 +2454,32 @@ function UserBadge({ className }: { className?: string }) {
     }
   }
 
+  if (loading) {
+    return (
+      <div className={className}>
+        <div className="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm font-medium text-muted-foreground">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-6 w-6">
+              <AvatarFallback>...</AvatarFallback>
+            </Avatar>
+            <span>登录状态加载中</span>
+          </div>
+          <Badge variant="outline" className="ml-auto">专业版</Badge>
+        </div>
+      </div>
+    )
+  }
+
   if (!me) {
     return (
       <div className={className}>
-        <Link href="/profile" className="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm font-medium hover:bg-muted">
+        <Link href="/login" className="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm font-medium hover:bg-muted">
           <div className="flex items-center gap-3">
             <Avatar className="h-6 w-6">
               <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
               <AvatarFallback>U</AvatarFallback>
             </Avatar>
-            <span>未登录</span>
+            <span>未登录（点击去登录）</span>
           </div>
           <Badge variant="outline" className="ml-auto">专业版</Badge>
         </Link>
