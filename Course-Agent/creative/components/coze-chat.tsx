@@ -39,34 +39,7 @@ const COZE_CONFIG = {
   botId: "7583617235025920034", // 复用现有 bot_id，若需改请替换
   appId: "1178272159026",
   publicKey: "vO_ZRV2SxcUonskBNtJzXf0x03mRx3qjTqUc5iLodGY",
-  privateKey: `-----BEGIN PRIVATE KEY-----
-  MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDBXOmRxh1p7d4a
-rSyVm7lDtnH/5YfmWliC7k944HhsM1DEpt8EfkaRY+B5Sys6uXKw0KLRaxjoEtQ7
-e+m3nuUB6wu2h+kvX5o6wASQLdG8j441HXVEWrpfiodMzUojAtMqrCqeUn5dzv/k
-Nz+OeNlq8w5luCVr2tKPuULJDLZZUxlpzbWt9DrSHH/RVHOUSIW54RBPIsbYNei4
-wUqtxCp33v2CMVi/cyiOggxVihFNUu27HG4rz7Psv6jxAXlrf5xoPwN4N/eKJOCH
-hkyfCfOhUHoFpzgAncEgzz0TKjVZJfDy2EoI8DgTyk3lZACcTKpHC79wSrm+s+UI
-Qh5z1eJVAgMBAAECggEAJIOO4NX8VnVSeI+kqHDSbKC+iM/3mI6NgdYOQFmFLAuJ
-sEUBvse4vDpT2JvTA0EjURPo9ypl9ucdWElHQoM5JCJWYSbrqCRBy9/YTMC2R0kF
-le6k5x5J7QJMF/r5ScC+DyQZXTHfRogxJs+vCxCzn+BbouZB/MrC8dyOachig93b
-GWQZEsqXx69exe2U7sV89BRFr9LrnzDvCst9Ds6fD8wpsLBpljbPcIlbfk1hGhkq
-txvKen/uHaFweGGTRD/FMxT/lCkH1mXS0TyesaNeZOVcZDOyfhYg8n8MqqIcxUF0
-7MqQPsd/yzpUFlZ3ohe6dx4Sqau8M7pdx+yP99Ct2QKBgQDg1BieK+3NpYeSG558
-8s1gnDezF915Vpq/Qs2JmZn8MkpBw8YyL49GsLru71sQ8tWzfp+13yLK8uzewtQz
-CezQyAAa15Z7wudp/c39hAesHq/nqnAKfVpSQG+qwA65guKOPt6W7AAdp5EtvYjx
-qmIsE6UdPSvzGrXix5GOxVQ3mQKBgQDcK//0LIsk1gJkfFD+n6bpPW4VgIbPX5kJ
-b0fJkw6VbBvE8mJFUvpzySs07P09K23TYwo1LX+5oWLWTkz4+q1fUF/eLuDam5hk
-fmKyplHvDZfUzWicxQaQo1HegYfLrQLrlxKZZh5ZfQ20hRMEzCWce4fmjjDU+fsc
-1Tc0xq4GHQKBgFb31FoC9icRe+K5ylHc/jL72tPtTF+ub4fCiI1MnHMg5PaRi25I
-VWzr2jOo5RomRSH8vjz1Bplo5NW6majwkumkI94+PNi86RVn9zG0y975s+OyW0rD
-eJfOkyOCzW9XQNnzWdkZi2XtNsxxv7JzzSvtoXYw/no4f9ksh5KppE0pAoGBAJyp
-7lmnbGcMpO0tjFBx98mVPYStTL+4bWPKPBGRw1nNcEEGm6hqb+39ofHqBBQHmAFH
-QtcuBelnjbWiR6EOdlkRDvZA8xx6hMhVKhOmxzxLttLkSmDqzU4T+EhUcPUbqa1L
-dR+UC1pv4lWmLy9FuCmNuNj0KokRS35rtPmnueJ9AoGAcZSr0QxBlBddiGV/3gaV
-O0ttofO7pxHScF0/Epr7J3y7Q3etzLwCkkTCFZzWjQzl8Zo5V6oTy3BCWkt1yftL
-HD9OTXDh0uqXMIzShXwQTTB6/kzGYv/vxTzTnx5aXLWTKs5rr2ORtWrholpiTzH+
-RkSGnn+NhwmO7BvSwIxbleU=
------END PRIVATE KEY-----`,
+  privateKey: process.env.NEXT_PUBLIC_COZE_PRIVATE_KEY ?? "",
 };
 
 function getUserUid(): string {
@@ -84,6 +57,9 @@ function getUserUid(): string {
 }
 
 function generateCozeJwt(userUid: string): string {
+  if (!COZE_CONFIG.privateKey) {
+    throw new Error("Missing COZE private key. Configure env and sign server-side.");
+  }
   const header = { alg: "RS256", typ: "JWT", kid: COZE_CONFIG.publicKey };
   const currentTime = Math.floor(Date.now() / 1000);
   const payload = {

@@ -388,34 +388,7 @@ const COZE_JWT_CONFIG = {
   // Coze后台 → 开发者设置 → 接口凭证 → 公钥
   publicKey: "-CSCxkFPQiXll0uBE-TxeIgCZSPpyx-Wtox_o65YvkI",
   // Coze后台生成的RSA私钥（保持格式完整，不要删除首尾标识）
-  privateKey: `-----BEGIN PRIVATE KEY-----
-MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCbRHNHJ5+yh11K
-gfivaNNv1J1amgXtRwBuiJ27dbftS93LlUOU1ex+yUCCls8+Za1hMAUydsgd5Fun
-YnnsEijnwPOnz1xGH78RTE7u5fx9s9le5AkAgcDSW5a1q7CCposOFmtpAdtyWGpW
-B5QmpWPG8V0Hk6SC99vDCBc6ZRMWUf6sxhyWjWf5F5TXZQYbXpcFhZg1uuZomV3s
-fr4ffKD5Mc+eh8TAz4aGYezUX67oZHrS0uEEARzuWFwJkwZdRfva7rpzFnw6YuLM
-OT0IbnLM1NeRuGqxnv5SbFeX9EnilLamq5TXcQNEJjuY2654+ahkrXydmAlgoQtg
-A/moiso3AgMBAAECggEAANP0+3c9a1I1iRyp7eWv/0V1m9REhpwkWZZiBJ9ISRap
-XZq+vYTcFpSXZQ2mU/i9KhY8aDgCbVKXwXyUU4bhnDn2t8cayG2PDn5IwDdxdvQH
-bJjQZONfA+OQWtxvk9LiXo6rLoHCny4ATjOMqiEUOQDLJIfY4Xj5fIrUk3BjJBNr
-vozrnlxwb7rhpStFHuKxxgsuyg1l2RjB5q/2Nkkf5Smp2ZNv9R+0tzybSqbKT/Sl
-jWxih1jiO46uVVajGkuL6a6T58Y+7JZUymkeagTTvWVQ9eForoAx3ONcEMQjF3r4
-A5noLVRaCWMz0NlOg5MdEyn2++QJw+1XFCYPKBZixQKBgQDLfg4S6+7AEEMg8i8i
-IIt2Jt0KODHtDFW4Q2wAY1YJ+oEHrAd7CdeqFBth+ZwjNqhvgbk62RLimupBCKcE
-yVRkAO4uesEGFfzwTwVabab7DlGuh/IYb1tMgLibsqjvnBgSZOnxruY3f+hruxCZ
-rr6rDaetS7vVpt+9ExvgmGQQ/QKBgQDDVNTakEyQvrh/ezFA/XSm7x5cTI9miTGV
-oRElCTInSI9ZTSYiArvaO3ECJ+hhIAAtpUUbzuVkxJib3bBzWHwYJAxiTLfU6FCG
-UT0vUSOuAMorcrmPHsTDjxV7kMImsoFoPFg9+BsOWqy293vWvlzf2F5NtsHm89h9
-F8j3ZB84QwKBgFi0Ij5tSi2+6QQ7jgA6X5CpcEE8Lcc/UT55ZWLl6mN/Jy/I9ZnU
-uIYTLbyPqlhPQy0YRz430dul2+dtdiDIAll1bl4kdG/Kte+rApJgqiFWJJUH/ahZ
-Ils+4To9rxaD3JpoEvKfYwteXlpXuOzFF6hI04bfNIn1rCInakeFJlmhAoGAT5f0
-uC8Ok/izU3cOhe4Bp7hORcwIrv5+jvs38kCCCFHf38K5JCi7BV0tWnSKk3EnwXHT
-7FXtUZdunCzEpuvKfUfLKA8c5YvYrDLUXMCSamf1+ahhBnnCMfHPDi/ZfU1FwAS+
-7Fl6JOo78L593u5pB+mx27b54jNA5xBXGr/YnOMCgYA8Udn852lK1E9NPPq8c3R1
-yi1jjpqRpPDGQS2fa7iwgrLUO/FQWpKaRpyxtXNtNyMs1m3PMt/7epl2Bwj+PUjl
-3r9nBz2pmycyoMdsgse2/ENaO6aiZipoLFQ3wBZQLtOuk9ytwBHU5ylC1OemoIfU
-Sm5BqKFgA1FvwP7yx5JhNA==
------END PRIVATE KEY-----`,
+  privateKey: process.env.NEXT_PUBLIC_COZE_PRIVATE_KEY ?? "",
   // Coze后台 → 机器人设置 → 机器人ID（原appId）
   botId: "7560276108453675054",
 };
@@ -478,6 +451,9 @@ function loadJwtLibrary(): Promise<void> {
  */
 function generateCozeJwt(userUid: string): string {
   if (!window.KJUR) throw new Error("JWT库未加载");
+  if (!COZE_JWT_CONFIG.privateKey) {
+    throw new Error("Missing COZE private key. Configure env and sign server-side.");
+  }
 
   // JWT头部：指定RS256算法+公钥ID
   const header = {
