@@ -16,7 +16,7 @@
   - Next.js + TypeScript + Tailwind CSS 前端工程
   - 使用 `pnpm` 管理依赖
 - [`mywebsite/`](mywebsite/)
-  - Django Web 项目，使用 SQLite 作为默认数据库
+  - Django Web 项目，使用 MariaDB 作为默认数据库（可通过环境变量切回 SQLite）
 - [`infra/`](infra/)
   - `docker/`：容器相关配置
   - `github/`：GitHub Actions 等 CI/CD 配置
@@ -108,6 +108,7 @@ pnpm start
 - 数据备份目录：[`mywebsite/backups/`](mywebsite/backups/)
 - 额外资源：[`mywebsite/resources/`](mywebsite/resources/)
 - 默认数据库：[`mywebsite/db.sqlite3`](mywebsite/db.sqlite3)
+  - `db.sqlite3` 可作为历史数据来源，用于迁移到 MariaDB
 
 ### 2.2 创建虚拟环境并安装依赖
 
@@ -124,23 +125,75 @@ source .venv/bin/activate  # Windows 使用: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2.3 数据库迁移
+### 2.3 配置 MariaDB（默认）
 
-如果你不打算使用现成的 [`mywebsite/db.sqlite3`](mywebsite/db.sqlite3)，可以先删除该文件，然后执行迁移：
+后端默认连接 MariaDB，请先在数据库中创建库（推荐 UTF8MB4）：
+
+```sql
+CREATE DATABASE course_agent_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+然后在环境变量中配置连接信息（Windows PowerShell 示例）：
+
+```powershell
+cd mywebsite
+$env:DB_NAME="course_agent_db"
+$env:DB_USER="root"
+$env:DB_PASSWORD="111111"
+$env:DB_HOST="127.0.0.1"
+$env:DB_PORT="3306"
+```
+
+安装依赖并执行迁移：
 
 ```bash
 cd mywebsite
+pip install -r requirements.txt
 python manage.py migrate
 ```
 
-### 2.4 创建管理员账号（可选）
+如果你要临时切回 SQLite（例如本地快速调试）：
+
+```powershell
+$env:USE_SQLITE="1"
+python manage.py migrate
+```
+
+### 2.4 旧 SQLite 数据迁移到 MariaDB（推荐）
+
+如果历史数据在 [`mywebsite/db.sqlite3`](mywebsite/db.sqlite3)，可用 Django 原生 `dumpdata/loaddata` 迁移：
+
+1. 使用 SQLite 导出数据
+
+```powershell
+cd mywebsite
+$env:USE_SQLITE="1"
+python manage.py dumpdata --exclude contenttypes --exclude auth.permission --indent 2 > data_migration.json
+```
+
+2. 切换回 MariaDB 并完成表迁移
+
+```powershell
+Remove-Item Env:USE_SQLITE
+python manage.py migrate
+```
+
+3. 导入数据到 MariaDB
+
+```powershell
+python manage.py loaddata data_migration.json
+```
+
+说明：排除 `contenttypes` 与 `auth.permission` 可避免多数跨数据库导入冲突。
+
+### 2.5 创建管理员账号（可选）
 
 ```bash
 cd mywebsite
 python manage.py createsuperuser
 ```
 
-### 2.5 启动开发服务器
+### 2.6 启动开发服务器
 
 ```bash
 cd mywebsite
@@ -149,7 +202,7 @@ python manage.py runserver
 
 默认情况下，Django 开发服务器会在 $http://localhost:8000$ 启动。
 
-### 2.6 运行测试脚本
+### 2.7 运行测试脚本
 
 项目提供了一个测试脚本 [`mywebsite/test_coze_script.py`](mywebsite/test_coze_script.py)，可用于验证部分功能（具体用途请参考脚本实现）：
 
