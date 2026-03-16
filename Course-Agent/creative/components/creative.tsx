@@ -377,18 +377,11 @@ declare global {
     CozeWebSDK?: {
       WebChatClient: new (config: any) => any;
     };
-    KJUR?: any;
   }
 }
 
-// ===================== Coze JWT 配置（请替换为你的真实信息）=====================
-const COZE_JWT_CONFIG = {
-  // Coze后台 → 开发者设置 → 应用ID
-  appId: "1146196662254",
-  // Coze后台 → 开发者设置 → 接口凭证 → 公钥
-  publicKey: "-CSCxkFPQiXll0uBE-TxeIgCZSPpyx-Wtox_o65YvkI",
-  // Coze后台生成的RSA私钥（保持格式完整，不要删除首尾标识）
-  privateKey: process.env.NEXT_PUBLIC_COZE_PRIVATE_KEY ?? "",
+// ===================== Coze 配置（请替换为你的真实信息）=====================
+const COZE_CONFIG = {
   // Coze后台 → 机器人设置 → 机器人ID（原appId）
   botId: "7560276108453675054",
 };
@@ -413,101 +406,21 @@ function getUserUid(): string {
   return visitorId;
 }
 
-// ===================== JWT 核心函数 =====================
-/**
- * 加载 JWT 加密库（jsrsasign）
- */
-function loadJwtLibrary(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (window.KJUR && window.KJUR.jws && window.KJUR.jws.JWS) {
-      resolve();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/8.0.20/jsrsasign-all-min.js";
-    script.type = "text/javascript";
-    script.crossOrigin = "anonymous";
-
-    script.onload = () => {
-      if (window.KJUR && window.KJUR.jws && window.KJUR.jws.JWS) {
-        resolve();
-      } else {
-        reject(new Error("JWT库加载成功但初始化失败"));
-      }
-    };
-
-    script.onerror = () => {
-      reject(new Error("JWT库加载失败，请检查网络或CDN链接"));
-    };
-
-    document.head.appendChild(script);
-  });
-}
-
-/**
- * 生成绑定用户ID的Coze JWT
- * @param userUid 用户唯一标识
- */
-function generateCozeJwt(userUid: string): string {
-  if (!window.KJUR) throw new Error("JWT库未加载");
-  if (!COZE_JWT_CONFIG.privateKey) {
-    throw new Error("Missing COZE private key. Configure env and sign server-side.");
-  }
-
-  // JWT头部：指定RS256算法+公钥ID
-  const header = {
-    alg: "RS256",
-    typ: "JWT",
-    kid: COZE_JWT_CONFIG.publicKey,
-  };
-
-  // JWT载荷：绑定用户ID+有效期（1小时）
-  const currentTime = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: COZE_JWT_CONFIG.appId,       // 签发方（你的应用ID）
-    aud: "api.coze.cn",               // 接收方（固定值）
-    jti: Math.random().toString(36).substr(2, 32) + Date.now(), // 唯一ID
-    iat: currentTime,                 // 签发时间
-    exp: currentTime + 3600,          // 过期时间
-    session_name: userUid,            // 核心：绑定用户ID，服务端隔离标识
-  };
-
-  // 用私钥签名生成JWT
-  return window.KJUR.jws.JWS.sign(
-    header.alg,
-    JSON.stringify(header),
-    JSON.stringify(payload),
-    COZE_JWT_CONFIG.privateKey
-  );
-}
-
-/**
- * 用JWT换取Coze Access Token（短期有效，用户专属）
- * @param jwt 签名后的JWT
- */
-async function getCozeAccessToken(jwt: string): Promise<string> {
+// ===================== Token 获取（服务端签名）====================
+async function getCozeAccessToken(userUid: string): Promise<string> {
   try {
-    const response = await fetch("https://api.coze.cn/api/permission/oauth2/token", {
+    const response = await fetch("/api/coze/token", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${jwt}`,
-      },
-      body: JSON.stringify({
-        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        duration_seconds: 900, // Token有效期15分钟（建议不超过3600）
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userUid }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`获取Token失败 [${response.status}]：${errorData.msg || "未知错误"}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.access_token) {
+      throw new Error(data.error || "获取Token失败");
     }
 
-    const data = await response.json();
-    if (!data.access_token) throw new Error("返回数据中无access_token");
-    return data.access_token;
+    return data.access_token as string;
   } catch (error) {
     console.error("获取Coze Access Token失败：", error);
     throw error;
@@ -529,16 +442,8 @@ function CozeQuizModule() {
         setUserUid(uid);
         console.log("【会话隔离】当前用户ID：", uid);
 
-        // 步骤2：加载JWT加密库
-        await loadJwtLibrary();
-        console.log("✅ JWT库加载成功");
-
-        // 步骤3：生成绑定用户ID的JWT
-        const jwt = generateCozeJwt(uid);
-        console.log("✅ JWT生成成功：", jwt.substring(0, 50) + "...");
-
-        // 步骤4：换取用户专属Access Token
-        const accessToken = await getCozeAccessToken(jwt);
+        // 步骤2：换取用户专属Access Token（服务端签名）
+        const accessToken = await getCozeAccessToken(uid);
         console.log("✅ Access Token获取成功：", accessToken.substring(0, 50) + "...");
 
         // 步骤5：销毁旧SDK实例（避免多实例串号）
@@ -565,8 +470,8 @@ function CozeQuizModule() {
 
             // 步骤7：初始化Coze SDK（核心：JWT Token + 隔离配置）
             const sdk = new (window as any).CozeWebSDK.AppWebSDK({
-              token: accessToken, // 替换原固定Token为JWT生成的用户专属Token
-              appId: COZE_JWT_CONFIG.botId, // 机器人ID
+              token: accessToken, // 服务端签名换取的用户专属Token
+              appId: COZE_CONFIG.botId, // 机器人ID
               container: '#coze-quiz-container',
               // 隔离配置1：userInfo绑定用户唯一ID
               userInfo: {
@@ -600,8 +505,7 @@ function CozeQuizModule() {
               // 隔离配置4：Token过期自动刷新（保持隔离不中断）
               onTokenExpired: async () => {
                 try {
-                  const newJwt = generateCozeJwt(uid);
-                  const newToken = await getCozeAccessToken(newJwt);
+                  const newToken = await getCozeAccessToken(uid);
                   sdk.updateToken(newToken); // 更新Token
                   console.log("✅ Token已刷新，会话隔离继续生效");
                 } catch (e) {

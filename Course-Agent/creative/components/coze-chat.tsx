@@ -8,38 +8,12 @@ declare global {
     CozeWebSDK?: {
       WebChatClient: new (config: any) => any;
     };
-    KJUR?: any;
   }
-}
-
-// 合并：加载 JWT 库 + 生成 Coze JWT + 以用户唯一ID做会话隔离
-function loadJwtLibrary(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (window.KJUR && window.KJUR.jws && window.KJUR.jws.JWS) {
-      resolve();
-      return;
-    }
-    const script = document.createElement("script");
-    script.src =
-      "https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/8.0.20/jsrsasign-all-min.js";
-    script.type = "text/javascript";
-    script.crossOrigin = "anonymous";
-    script.onload = () => {
-      if (window.KJUR && window.KJUR.jws && window.KJUR.jws.JWS) resolve();
-      else reject(new Error("JWT库加载但未正确初始化"));
-    };
-    script.onerror = () =>
-      reject(new Error(`JWT库加载失败，请检查链接: ${script.src}`));
-    document.head.appendChild(script);
-  });
 }
 
 // 提示：将以下配置替换为你的真实值（不要改动关键结构）
 const COZE_CONFIG = {
   botId: "7583617235025920034", // 复用现有 bot_id，若需改请替换
-  appId: "1178272159026",
-  publicKey: "vO_ZRV2SxcUonskBNtJzXf0x03mRx3qjTqUc5iLodGY",
-  privateKey: process.env.NEXT_PUBLIC_COZE_PRIVATE_KEY ?? "",
 };
 
 function getUserUid(): string {
@@ -56,44 +30,17 @@ function getUserUid(): string {
   return visitorId;
 }
 
-function generateCozeJwt(userUid: string): string {
-  if (!COZE_CONFIG.privateKey) {
-    throw new Error("Missing COZE private key. Configure env and sign server-side.");
-  }
-  const header = { alg: "RS256", typ: "JWT", kid: COZE_CONFIG.publicKey };
-  const currentTime = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: COZE_CONFIG.appId,
-    aud: "api.coze.cn",
-    jti: Math.random().toString(36).substr(2, 32) + Date.now(),
-    iat: currentTime,
-    exp: currentTime + 3600,
-    session_name: userUid,
-  };
-  return window.KJUR.jws.JWS.sign(
-    header.alg,
-    JSON.stringify(header),
-    JSON.stringify(payload),
-    COZE_CONFIG.privateKey
-  );
-}
-
-async function getAccessToken(jwt: string): Promise<string> {
-  const resp = await fetch("https://api.coze.cn/api/permission/oauth2/token", {
+async function getAccessToken(userUid: string): Promise<string> {
+  const resp = await fetch("/api/coze/token", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${jwt}`,
-    },
-    body: JSON.stringify({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      duration_seconds: 900,
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userUid }),
   });
-  if (!resp.ok)
-    throw new Error(`获取token失败，HTTP状态码: ${resp.status}`);
-  const data = await resp.json();
-  return data.access_token;
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || !data.access_token) {
+    throw new Error(data.error || "获取token失败");
+  }
+  return data.access_token as string;
 }
 
 export const CozeChat = () => {
@@ -104,16 +51,14 @@ export const CozeChat = () => {
         return;
       }
       try {
-        await loadJwtLibrary();
         const userUid = getUserUid();
-        const jwt = generateCozeJwt(userUid);
-        const accessToken = await getAccessToken(jwt);
+        const accessToken = await getAccessToken(userUid);
         new window.CozeWebSDK.WebChatClient({
           config: { type: "bot", bot_id: COZE_CONFIG.botId, isIframe: false },
           auth: {
             type: "token",
             token: accessToken,
-            onRefreshToken: async () => accessToken,
+            onRefreshToken: async () => getAccessToken(userUid),
           },
           userInfo: { id: userUid, nickname: "User" },
           ui: {
