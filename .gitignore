@@ -1,6 +1,12 @@
 # Created by https://www.toptal.com/developers/gitignore/api/django,python,node,nextjs,windows,macos,visualstudiocode
 # Edit at https://www.toptal.com/developers/gitignore?templates=django,python,node,nextjs,windows,macos,visualstudiocode
 
+# Monorepo local build artifacts and virtual environments
+**/.next/
+**/out/
+mywebsite/venv/
+mywebsite/.venv/
+
 ### Django ###
 *.log
 *.pot
