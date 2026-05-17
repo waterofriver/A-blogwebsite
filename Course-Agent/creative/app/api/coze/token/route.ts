@@ -3,25 +3,56 @@ import { SignJWT, importPKCS8 } from "jose";
 
 type TokenRequestBody = {
   userUid?: string;
+  botId?: string;
+};
+
+type CozeEnvSet = {
+  appIdEnv: string;
+  publicKeyEnv: string;
+  privateKeyEnv: string;
+};
+
+const BOT_ENV_MAP: Record<string, CozeEnvSet> = {
+  "7583617235025920034": {
+    appIdEnv: "COZE_APP_ID_CHAT",
+    publicKeyEnv: "COZE_PUBLIC_KEY_CHAT",
+    privateKeyEnv: "COZE_PRIVATE_KEY_CHAT",
+  },
+  "7560276108453675054": {
+    appIdEnv: "COZE_APP_ID_QUIZ",
+    publicKeyEnv: "COZE_PUBLIC_KEY_QUIZ",
+    privateKeyEnv: "COZE_PRIVATE_KEY_QUIZ",
+  },
 };
 
 export async function POST(request: Request) {
-  const appId = process.env.COZE_APP_ID;
-  const publicKey = process.env.COZE_PUBLIC_KEY;
-  const privateKey = process.env.COZE_PRIVATE_KEY;
+  const body = (await request.json().catch(() => ({}))) as TokenRequestBody;
+  const userUid = body.userUid || "server_session";
+  const envSet = body.botId ? BOT_ENV_MAP[body.botId] : undefined;
+
+  const appId =
+    (envSet ? process.env[envSet.appIdEnv] : undefined) ||
+    process.env.COZE_APP_ID;
+  const publicKey =
+    (envSet ? process.env[envSet.publicKeyEnv] : undefined) ||
+    process.env.COZE_PUBLIC_KEY;
+  const privateKey =
+    (envSet ? process.env[envSet.privateKeyEnv] : undefined) ||
+    process.env.COZE_PRIVATE_KEY;
 
   if (!appId || !publicKey || !privateKey) {
+    const envHint = envSet
+      ? [envSet.appIdEnv, envSet.publicKeyEnv, envSet.privateKeyEnv]
+      : ["COZE_APP_ID", "COZE_PUBLIC_KEY", "COZE_PRIVATE_KEY"];
     return NextResponse.json(
-      { error: "Missing COZE env vars" },
+      { error: `Missing COZE env vars: ${envHint.join(", ")}` },
       { status: 500 }
     );
   }
 
-  const body = (await request.json().catch(() => ({}))) as TokenRequestBody;
-  const userUid = body.userUid || "server_session";
-
   const now = Math.floor(Date.now() / 1000);
-  const key = await importPKCS8(privateKey, "RS256");
+  const normalizedPrivateKey = privateKey.replace(/\\n/g, "\n");
+  const key = await importPKCS8(normalizedPrivateKey, "RS256");
 
   const jwt = await new SignJWT({
     iss: appId,

@@ -30,11 +30,11 @@ function getUserUid(): string {
   return visitorId;
 }
 
-async function getAccessToken(userUid: string): Promise<string> {
+async function getAccessToken(userUid: string, botId: string): Promise<string> {
   const resp = await fetch("/api/coze/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userUid }),
+    body: JSON.stringify({ userUid, botId }),
   });
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok || !data.access_token) {
@@ -52,13 +52,13 @@ export const CozeChat = () => {
       }
       try {
         const userUid = getUserUid();
-        const accessToken = await getAccessToken(userUid);
+        const accessToken = await getAccessToken(userUid, COZE_CONFIG.botId);
         new window.CozeWebSDK.WebChatClient({
           config: { type: "bot", bot_id: COZE_CONFIG.botId, isIframe: false },
           auth: {
             type: "token",
             token: accessToken,
-            onRefreshToken: async () => getAccessToken(userUid),
+            onRefreshToken: async () => getAccessToken(userUid, COZE_CONFIG.botId),
           },
           userInfo: { id: userUid, nickname: "User" },
           ui: {

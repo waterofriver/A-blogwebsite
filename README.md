@@ -284,7 +284,7 @@ $env:DB_PORT="3306"
 ```
 
 2. 确认 `mywebsite/mywebsite/settings.py` 中 `ALLOWED_HOSTS` 包含：
-  - 服务器内网 IP（如 `192.168.81.100`）
+  - 服务器内网 IP（如 `10.11.69.27`）
   - `localhost`
   - `127.0.0.1`
 
@@ -301,11 +301,11 @@ python manage.py collectstatic --noinput
 
 ```powershell
 cd mywebsite
-waitress-serve --listen=0.0.0.0:8000 mywebsite.wsgi:application
+waitress-serve --listen=10.11.69.27:8000 mywebsite.wsgi:application
 ```
 
 5. 局域网访问地址：
-  - `http://192.168.81.100:8000`（将 IP 换成你的服务器内网地址）
+  - `http://10.11.69.27:8000`
 
 ### 4.3 Next.js 前端局域网访问（可选）
 
@@ -315,22 +315,22 @@ waitress-serve --listen=0.0.0.0:8000 mywebsite.wsgi:application
 cd Course-Agent/creative
 pnpm install
 pnpm build
-pnpm start -H 0.0.0.0 -p 3000
+pnpm start -H 10.11.69.27 -p 3000
 ```
 
 然后确保前端环境变量使用服务器 IP，而不是 localhost：
 
 ```bash
-NEXT_PUBLIC_BACKEND_URL=http://192.168.81.100:8000
+NEXT_PUBLIC_BACKEND_URL=http://10.11.69.27:8000
 ```
 
 局域网访问地址：
-- `http://192.168.81.100:3000`
+- `http://10.11.69.27:3000`
 
 ### 4.4 跨域与登录态注意事项
 
 1. `CORS_ALLOWED_ORIGINS` 需要包含前端实际访问地址，例如：
-  - `http://192.168.81.100:3000`
+  - `http://10.11.69.27:3000`
 2. 前后端不要混用 `localhost`、`127.0.0.1` 和局域网 IP。
 3. 同一环境中尽量固定使用一个主机名/IP，避免 session cookie 不一致。
 

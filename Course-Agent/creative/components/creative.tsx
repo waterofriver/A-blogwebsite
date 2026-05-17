@@ -407,12 +407,12 @@ function getUserUid(): string {
 }
 
 // ===================== Token 获取（服务端签名）====================
-async function getCozeAccessToken(userUid: string): Promise<string> {
+async function getCozeAccessToken(userUid: string, botId: string): Promise<string> {
   try {
     const response = await fetch("/api/coze/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userUid }),
+      body: JSON.stringify({ userUid, botId }),
     });
 
     const data = await response.json().catch(() => ({}));
@@ -443,7 +443,7 @@ function CozeQuizModule() {
         console.log("【会话隔离】当前用户ID：", uid);
 
         // 步骤2：换取用户专属Access Token（服务端签名）
-        const accessToken = await getCozeAccessToken(uid);
+        const accessToken = await getCozeAccessToken(uid, COZE_CONFIG.botId);
         console.log("✅ Access Token获取成功：", accessToken.substring(0, 50) + "...");
 
         // 步骤5：销毁旧SDK实例（避免多实例串号）
@@ -505,7 +505,7 @@ function CozeQuizModule() {
               // 隔离配置4：Token过期自动刷新（保持隔离不中断）
               onTokenExpired: async () => {
                 try {
-                  const newToken = await getCozeAccessToken(uid);
+                  const newToken = await getCozeAccessToken(uid, COZE_CONFIG.botId);
                   sdk.updateToken(newToken); // 更新Token
                   console.log("✅ Token已刷新，会话隔离继续生效");
                 } catch (e) {
@@ -693,6 +693,8 @@ type SidebarItem = {
   children?: SidebarItem[]
 }
 
+const legacyCommunityUrl = `${(process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000").replace(/\/$/, "")}/`
+
 const sidebarItems: SidebarItem[] = [
   { title: "首页", icon: <Home />, url: "#home", isActive: true },
   {
@@ -701,7 +703,7 @@ const sidebarItems: SidebarItem[] = [
     url: "#apps",
     children: [
       { title: "灵动版", icon: <Sparkles className="h-4 w-4" />, url: "#apps" },
-      { title: "经典版", icon: <LayoutGrid className="h-4 w-4" />, url: "http://127.0.0.1:8000/" },
+      { title: "经典版", icon: <LayoutGrid className="h-4 w-4" />, url: legacyCommunityUrl },
     ],
   },
   { title: "资源", icon: <Bookmark />, url: "#resources" },

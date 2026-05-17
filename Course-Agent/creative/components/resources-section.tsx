@@ -14,7 +14,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 
 const RESOURCES_API_BASE =
   (process.env.NEXT_PUBLIC_RESOURCES_API && process.env.NEXT_PUBLIC_RESOURCES_API.replace(/\/$/, "")) ||
-  "http://127.0.0.1:8000/api/resources"
+  `${(process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000").replace(/\/$/, "")}/api/resources`
 const HANDBOOK_LINK = "https://note.youdao.com/s/3EprlwzR"
 
 type CatalogAttachment = {
