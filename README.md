@@ -353,3 +353,9 @@ NEXT_PUBLIC_BACKEND_URL=http://10.11.69.27:8000
   - 推荐使用 `pytest` 或 Django 自带测试框架
 
 欢迎通过 PR、Issue 的方式参与贡献。
+
+---
+
+## 许可证
+
+本项目使用 MIT License，详见 [LICENSE](LICENSE)。
