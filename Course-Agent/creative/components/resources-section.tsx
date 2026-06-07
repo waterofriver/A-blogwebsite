@@ -11,10 +11,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { getBackendBaseUrl } from "@/config/api"
 
 const RESOURCES_API_BASE =
   (process.env.NEXT_PUBLIC_RESOURCES_API && process.env.NEXT_PUBLIC_RESOURCES_API.replace(/\/$/, "")) ||
-  `${(process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000").replace(/\/$/, "")}/api/resources`
+  `${getBackendBaseUrl()}/api/resources`
 const HANDBOOK_LINK = "https://note.youdao.com/s/3EprlwzR"
 
 type CatalogAttachment = {

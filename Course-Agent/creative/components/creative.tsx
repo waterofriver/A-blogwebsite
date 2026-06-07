@@ -60,6 +60,7 @@ import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { getBackendBaseUrl } from "@/config/api"
 import { cn } from "@/lib/utils"
 import {
   Dialog,
@@ -693,7 +694,7 @@ type SidebarItem = {
   children?: SidebarItem[]
 }
 
-const legacyCommunityUrl = `${(process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000").replace(/\/$/, "")}/`
+const legacyCommunityUrl = `${getBackendBaseUrl()}/`
 
 const sidebarItems: SidebarItem[] = [
   { title: "首页", icon: <Home />, url: "#home", isActive: true },
@@ -745,22 +746,6 @@ interface ForumDetail extends ForumPost {
   liked?: boolean
 }
 
-function resolveApiBase(rawBase: string): string {
-  if (typeof window === 'undefined') return rawBase
-  try {
-    const url = new URL(rawBase)
-    const isLocalAlias = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
-    const pageHost = window.location.hostname
-    const pageIsLocalAlias = pageHost === 'localhost' || pageHost === '127.0.0.1'
-    if (isLocalAlias && pageIsLocalAlias && url.hostname !== pageHost) {
-      url.hostname = pageHost
-    }
-    return url.origin
-  } catch {
-    return rawBase
-  }
-}
-
 export function DesignaliCreative() {
   const [progress, setProgress] = useState(0)
   const [notifications, setNotifications] = useState(5)
@@ -803,7 +788,7 @@ export function DesignaliCreative() {
   const forumPageSize = 10
   const forumPageCount = Math.max(1, Math.ceil((forumTotal || 0) / forumPageSize))
   const API_BASE = useMemo(
-    () => resolveApiBase(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000'),
+    () => getBackendBaseUrl(),
     [],
   )
 
@@ -2301,7 +2286,7 @@ function UserBadge({ className }: { className?: string }) {
   const fileRef: any = null
 
   const API_BASE = useMemo(
-    () => resolveApiBase(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000'),
+    () => getBackendBaseUrl(),
     [],
   )
 

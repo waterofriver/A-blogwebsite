@@ -6,11 +6,12 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/componen
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { getBackendBaseUrl } from "@/config/api"
 
 export default function ProfileCard({ backendUrl }: { backendUrl?: string }) {
   const router = useRouter()
   const [profile, setProfile] = useState<any | null>(null)
-  const API_BASE = backendUrl || (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000')
+  const API_BASE = backendUrl || getBackendBaseUrl()
 
   useEffect(() => {
     let mounted = true
